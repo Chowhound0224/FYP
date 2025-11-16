@@ -9,16 +9,73 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.metrics.pairwise import cosine_similarity
 import joblib
 import numpy as np
-from AI_model import rank_uploaded_resumes, CleanConfig, DEFAULT_CLEAN_CONFIG
+from AI_model import rank_uploaded_resumes_hybrid, load_sbert_model, CleanConfig, DEFAULT_CLEAN_CONFIG, extract_custom_features
+from sklearn.preprocessing import StandardScaler
 
 # ==========================
 # Load trained ML components
 # ==========================
-svm_model = joblib.load("resume_classifier_model.pkl")
-tfidf = joblib.load("tfidf_vectorizer.pkl")
+@st.cache_resource
+def load_models():
+    """Load and cache all ML models"""
+    # Load improved model components
+    classifier = joblib.load("improved_classifier.pkl")
+    tfidf_vec = joblib.load("improved_tfidf.pkl")
+    scaler = joblib.load("improved_scaler.pkl")
+    label_encoder = joblib.load("improved_label_encoder.pkl")
+    sbert = load_sbert_model()  # Load SBERT model
+    return classifier, tfidf_vec, scaler, label_encoder, sbert
+
+classifier_model, tfidf, scaler, label_encoder, sbert_model = load_models()
 
 # Load job description dataset
 jd_df = pd.read_csv("training_data.csv")
+
+# ==========================
+# Improved Prediction Function
+# ==========================
+def predict_category_improved(resume_text, cleaned_text):
+    """
+    Predict job category using improved model with SBERT + TF-IDF + custom features
+
+    Args:
+        resume_text: Original resume text (for SBERT and custom features)
+        cleaned_text: Cleaned resume text (for TF-IDF)
+
+    Returns:
+        predicted_category: String category name
+    """
+    # 1. SBERT embeddings
+    sbert_embeddings = sbert_model.encode([resume_text])
+
+    # 2. TF-IDF features
+    tfidf_features = tfidf.transform([cleaned_text]).toarray()
+
+    # 3. Custom features (7 features total)
+    custom_features_dict = extract_custom_features(resume_text)
+    custom_features = np.array([[
+        custom_features_dict['max_years_exp'],
+        custom_features_dict['total_years_mentioned'],
+        custom_features_dict['education_level'],
+        custom_features_dict['tech_skill_count'],
+        custom_features_dict['soft_skill_count'],
+        custom_features_dict['word_count'],
+        custom_features_dict['cert_count']
+    ]])
+
+    # Scale custom features
+    custom_features_scaled = scaler.transform(custom_features)
+
+    # Combine all features
+    X_combined = np.hstack([sbert_embeddings, tfidf_features, custom_features_scaled])
+
+    # Predict
+    prediction_encoded = classifier_model.predict(X_combined)[0]
+
+    # Decode to category name
+    predicted_category = label_encoder.inverse_transform([prediction_encoded])[0]
+
+    return predicted_category
 
 # ==========================
 # Helper functions
@@ -88,9 +145,8 @@ if mode == "Job Seeker - Find Matching Jobs":
             # Clean text
             cleaned_resume = clean_text(resume_text)
 
-            # Predict category
-            resume_vector = tfidf.transform([cleaned_resume])
-            predicted_category = svm_model.predict(resume_vector)[0]
+            # Predict category using improved model
+            predicted_category = predict_category_improved(resume_text, cleaned_resume)
             st.success(f"🧠 Predicted Job Category for {uploaded_file.name}: **{predicted_category}**")
 
             # Compute job matches
@@ -165,15 +221,19 @@ else:
                 if not resume_texts:
                     st.error("❌ No valid resumes could be processed!")
                 else:
-                    # Rank candidates using the AI model
-                    ranked_results = rank_uploaded_resumes(
+                    # Rank candidates using the hybrid AI model with improved classifier
+                    # Uses full feature pipeline: SBERT + TF-IDF + custom features
+                    ranked_results = rank_uploaded_resumes_hybrid(
                         job_title=job_title,
                         job_description=job_description,
                         resume_texts=resume_texts,
                         resume_filenames=resume_filenames,
                         vectorizer=tfidf,
+                        sbert_model=sbert_model,
                         clean_config=DEFAULT_CLEAN_CONFIG,
-                        classifier=svm_model
+                        classifier=classifier_model,
+                        scaler=scaler,
+                        label_encoder=label_encoder
                     )
 
                     # Display results
@@ -186,6 +246,12 @@ else:
                         filename = result['filename']
                         score = result['matching_percentage']
                         category = result.get('predicted_category', 'N/A')
+                        matched_keywords = result.get('matched_keywords', [])
+                        keywords_count = result.get('matched_keywords_count', 0)
+                        total_keywords = result.get('total_keywords', 0)
+                        tfidf_score = result.get('tfidf_score', 0)
+                        keyword_score = result.get('keyword_score', 0)
+                        category_score = result.get('category_score', 0)
 
                         # Color code based on score
                         if score >= 70:
@@ -199,19 +265,45 @@ else:
                             badge_color = "red"
 
                         with st.container():
-                            col1, col2, col3, col4 = st.columns([1, 4, 2, 2])
+                            col1, col2, col3 = st.columns([1, 5, 3])
 
                             with col1:
                                 st.markdown(f"### #{rank}")
 
                             with col2:
                                 st.markdown(f"**{filename}**")
+                                st.caption(f"Category: *{category}*")
 
                             with col3:
-                                st.markdown(f"{color} **{score:.1f}%** match")
+                                st.markdown(f"{color} **{score:.1f}%** overall match")
 
-                            with col4:
-                                st.markdown(f"Category: *{category}*")
+                            # Expandable details section
+                            with st.expander("📊 View Detailed Scores & Matched Keywords"):
+                                # Score breakdown
+                                score_col1, score_col2, score_col3, score_col4 = st.columns(4)
+
+                                sbert_score = result.get('sbert_score', 0)
+
+                                with score_col1:
+                                    st.metric("SBERT Match", f"{sbert_score:.1f}%", help="Semantic understanding (40% weight)")
+
+                                with score_col2:
+                                    st.metric("TF-IDF Match", f"{tfidf_score:.1f}%", help="Exact term matching (30% weight)")
+
+                                with score_col3:
+                                    st.metric("Keyword Match", f"{keyword_score:.1f}%", help="Required skills (20% weight)")
+
+                                with score_col4:
+                                    st.metric("Category Match", f"{category_score:.1f}%", help="Job type alignment (10% weight)")
+
+                                # Matched keywords
+                                st.markdown("**Matched Keywords:**")
+                                if matched_keywords:
+                                    st.info(f"**{keywords_count}/{total_keywords}** keywords found: {', '.join(matched_keywords[:15])}")
+                                    if len(matched_keywords) > 15:
+                                        st.caption(f"...and {len(matched_keywords) - 15} more")
+                                else:
+                                    st.warning("No specific keywords matched")
 
                             st.divider()
 
