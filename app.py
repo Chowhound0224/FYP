@@ -9,6 +9,7 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.metrics.pairwise import cosine_similarity
 import joblib
 import numpy as np
+from AI_model import rank_uploaded_resumes, CleanConfig, DEFAULT_CLEAN_CONFIG
 
 # ==========================
 # Load trained ML components
@@ -54,46 +55,172 @@ def extract_text_from_docx(file):
 st.set_page_config(page_title="AI Resume Screening System", layout="wide")
 
 st.title("🤖 AI-Powered Resume Screening System")
-st.write("Upload your resume (PDF/DOCX) and find your best job match instantly.")
 
-uploaded_file = st.file_uploader("📂 Upload your resume", type=["pdf", "docx"])
+# Create two modes: Job Seeker vs HR
+mode = st.sidebar.radio(
+    "Select Mode:",
+    ["Job Seeker - Find Matching Jobs", "HR - Rank Candidates"]
+)
 
-if uploaded_file is not None:
-    # Extract text
-    if uploaded_file.type == "application/pdf":
-        resume_text = extract_text_from_pdf(uploaded_file)
-    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        resume_text = extract_text_from_docx(uploaded_file)
-    else:
-        st.error("Unsupported file format!")
-        st.stop()
+# ==========================
+# MODE 1: Job Seeker Mode
+# ==========================
+if mode == "Job Seeker - Find Matching Jobs":
+    st.write("Upload your resume (PDF/DOCX) and find your best job match instantly.")
 
-    # Clean text
-    cleaned_resume = clean_text(resume_text)
+    uploaded_files = st.file_uploader("📂 Upload your resumes", type=["pdf", "docx"], accept_multiple_files=True)
 
-    # Predict category
-    resume_vector = tfidf.transform([cleaned_resume])
-    predicted_category = svm_model.predict(resume_vector)[0]
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            st.write(f"📄 **Processing:** {uploaded_file.name}")
+            resume_text = ""  # initialize variable to avoid NameError
 
-    st.success(f"🧠 Predicted Job Category: **{predicted_category}**")
+            # Detect file type by extension
+            file_name = uploaded_file.name.lower()
+            if file_name.endswith(".pdf"):
+                resume_text = extract_text_from_pdf(uploaded_file)
+            elif file_name.endswith(".docx"):
+                resume_text = extract_text_from_docx(uploaded_file)
+            else:
+                st.error(f"Unsupported file format: {uploaded_file.name}")
+                continue  # skip this file
 
-    # Clean job descriptions
-    jd_df['cleaned_jd'] = jd_df['job_description'].apply(clean_text)
+            # Clean text
+            cleaned_resume = clean_text(resume_text)
 
-    # Transform job descriptions
-    jd_tfidf = tfidf.transform(jd_df['cleaned_jd'])
+            # Predict category
+            resume_vector = tfidf.transform([cleaned_resume])
+            predicted_category = svm_model.predict(resume_vector)[0]
+            st.success(f"🧠 Predicted Job Category for {uploaded_file.name}: **{predicted_category}**")
 
-    # Compute cosine similarity
-    similarities = cosine_similarity(resume_vector, jd_tfidf)[0]
+            # Compute job matches
+            jd_df['cleaned_jd'] = jd_df['job_description'].apply(clean_text)
+            jd_tfidf = tfidf.transform(jd_df['cleaned_jd'])
+            similarities = cosine_similarity(resume_vector, jd_tfidf)[0]
+            top_indices = np.argsort(similarities)[-3:][::-1]
 
-    # Get top 3 matches
-    top_indices = np.argsort(similarities)[-3:][::-1]
+            st.subheader(f"🎯 Top Matching Job Positions for {uploaded_file.name}:")
+            for idx in top_indices:
+                st.write(f"**Company:** {jd_df.iloc[idx]['company_name']}")
+                st.write(f"**Position:** {jd_df.iloc[idx]['position_title']}")
+                st.write(f"**Matching Score:** {similarities[idx] * 100:.2f}%")
+                st.write("---")
 
-    st.subheader("🎯 Top Matching Job Positions:")
-    for idx in top_indices:
-        st.write(f"**Company:** {jd_df.iloc[idx]['company_name']}")
-        st.write(f"**Position:** {jd_df.iloc[idx]['position_title']}")
-        st.write(f"**Matching Score:** {similarities[idx] * 100:.2f}%")
-        st.write("---")
+        st.success("✅ All resumes processed successfully! Scroll up to see your results.")
 
-    st.success("✅ Matching complete! Scroll up to see your results.")
+# ==========================
+# MODE 2: HR Ranking Mode
+# ==========================
+else:
+    st.write("Enter job details and upload candidate resumes to get AI-powered rankings.")
+
+    # Job input section
+    st.subheader("📋 Job Details")
+    job_title = st.text_input("Job Title", placeholder="e.g., Senior Software Engineer")
+    job_description = st.text_area(
+        "Job Description",
+        placeholder="Enter the job description, requirements, and qualifications...",
+        height=200
+    )
+
+    # Resume upload section
+    st.subheader("📂 Upload Candidate Resumes")
+    candidate_files = st.file_uploader(
+        "Upload resumes (PDF/DOCX)",
+        type=["pdf", "docx"],
+        accept_multiple_files=True,
+        key="hr_uploader"
+    )
+
+    # Process and rank button
+    if st.button("🚀 Rank Candidates", type="primary"):
+        if not job_title or not job_description:
+            st.error("⚠️ Please enter both job title and description!")
+        elif not candidate_files:
+            st.error("⚠️ Please upload at least one candidate resume!")
+        else:
+            with st.spinner("🔄 Processing and ranking candidates..."):
+                # Extract text from all uploaded resumes
+                resume_texts = []
+                resume_filenames = []
+
+                for uploaded_file in candidate_files:
+                    file_name = uploaded_file.name.lower()
+                    resume_text = ""
+
+                    try:
+                        if file_name.endswith(".pdf"):
+                            resume_text = extract_text_from_pdf(uploaded_file)
+                        elif file_name.endswith(".docx"):
+                            resume_text = extract_text_from_docx(uploaded_file)
+
+                        if resume_text.strip():
+                            resume_texts.append(resume_text)
+                            resume_filenames.append(uploaded_file.name)
+                        else:
+                            st.warning(f"⚠️ {uploaded_file.name} appears to be empty or unreadable")
+                    except Exception as e:
+                        st.error(f"❌ Error processing {uploaded_file.name}: {str(e)}")
+
+                if not resume_texts:
+                    st.error("❌ No valid resumes could be processed!")
+                else:
+                    # Rank candidates using the AI model
+                    ranked_results = rank_uploaded_resumes(
+                        job_title=job_title,
+                        job_description=job_description,
+                        resume_texts=resume_texts,
+                        resume_filenames=resume_filenames,
+                        vectorizer=tfidf,
+                        clean_config=DEFAULT_CLEAN_CONFIG,
+                        classifier=svm_model
+                    )
+
+                    # Display results
+                    st.success(f"✅ Successfully ranked {len(ranked_results)} candidates!")
+                    st.subheader("🏆 Candidate Rankings")
+
+                    # Display each ranked candidate
+                    for result in ranked_results:
+                        rank = result['rank']
+                        filename = result['filename']
+                        score = result['matching_percentage']
+                        category = result.get('predicted_category', 'N/A')
+
+                        # Color code based on score
+                        if score >= 70:
+                            color = "🟢"
+                            badge_color = "green"
+                        elif score >= 50:
+                            color = "🟡"
+                            badge_color = "orange"
+                        else:
+                            color = "🔴"
+                            badge_color = "red"
+
+                        with st.container():
+                            col1, col2, col3, col4 = st.columns([1, 4, 2, 2])
+
+                            with col1:
+                                st.markdown(f"### #{rank}")
+
+                            with col2:
+                                st.markdown(f"**{filename}**")
+
+                            with col3:
+                                st.markdown(f"{color} **{score:.1f}%** match")
+
+                            with col4:
+                                st.markdown(f"Category: *{category}*")
+
+                            st.divider()
+
+                    # Download results as CSV
+                    results_df = pd.DataFrame(ranked_results)
+                    csv = results_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Rankings as CSV",
+                        data=csv,
+                        file_name="candidate_rankings.csv",
+                        mime="text/csv"
+                    )
