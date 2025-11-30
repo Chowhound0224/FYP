@@ -1,0 +1,18 @@
+{
+  "saved_at": "20251113_134415",
+  "dataset_hash": "dac9b13a09dc20a288f163fee623375f",
+  "clean_config": {
+    "lower": true,
+    "strip_urls": true,
+    "strip_emails": true,
+    "remove_non_alpha": true,
+    "remove_stopwords": true,
+    "lemmatize": true,
+    "mask_numbers": true
+  },
+  "latest_model_path": "C:\\Users\\Admin\\Documents\\FYP\\resume_classifier_model.pkl",
+  "latest_vectorizer_path": "C:\\Users\\Admin\\Documents\\FYP\\tfidf_vectorizer.pkl",
+  "versioned_model_path": "C:\\Users\\Admin\\Documents\\FYP\\artifacts\\resume_classifier_20251113_134415.pkl",
+  "versioned_vectorizer_path": "C:\\Users\\Admin\\Documents\\FYP\\artifacts\\tfidf_vectorizer_20251113_134415.pkl",
+  "pipeline_path": "C:\\Users\\Admin\\Documents\\FYP\\artifacts\\resume_pipeline_20251113_134415.pkl"
+}

@@ -1,0 +1,9 @@
+{
+  "lower": true,
+  "strip_urls": true,
+  "strip_emails": true,
+  "remove_non_alpha": true,
+  "remove_stopwords": true,
+  "lemmatize": true,
+  "mask_numbers": true
+}

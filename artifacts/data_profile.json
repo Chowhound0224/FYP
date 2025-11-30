@@ -1,0 +1,89 @@
+{
+  "generated_at": "2025-11-21T02:22:52.046628",
+  "resume": {
+    "rows": 2484,
+    "columns": [
+      "ID",
+      "Resume_str",
+      "Resume_html",
+      "Category"
+    ],
+    "duplicate_rows": 0,
+    "null_counts": {
+      "ID": 0,
+      "Resume_str": 0,
+      "Resume_html": 0,
+      "Category": 0
+    },
+    "label_distribution": {
+      "INFORMATION-TECHNOLOGY": 120,
+      "BUSINESS-DEVELOPMENT": 120,
+      "ADVOCATE": 118,
+      "CHEF": 118,
+      "ENGINEERING": 118,
+      "ACCOUNTANT": 118,
+      "FINANCE": 118,
+      "FITNESS": 117,
+      "AVIATION": 117,
+      "SALES": 116,
+      "BANKING": 115,
+      "HEALTHCARE": 115,
+      "CONSULTANT": 115,
+      "CONSTRUCTION": 112,
+      "PUBLIC-RELATIONS": 111,
+      "HR": 110,
+      "DESIGNER": 107,
+      "ARTS": 103,
+      "TEACHER": 102,
+      "APPAREL": 97,
+      "DIGITAL-MEDIA": 96,
+      "AGRICULTURE": 63,
+      "AUTOMOBILE": 36,
+      "BPO": 22
+    },
+    "label_distribution_normalized": {
+      "INFORMATION-TECHNOLOGY": 0.0483,
+      "BUSINESS-DEVELOPMENT": 0.0483,
+      "ADVOCATE": 0.0475,
+      "CHEF": 0.0475,
+      "ENGINEERING": 0.0475,
+      "ACCOUNTANT": 0.0475,
+      "FINANCE": 0.0475,
+      "FITNESS": 0.0471,
+      "AVIATION": 0.0471,
+      "SALES": 0.0467,
+      "BANKING": 0.0463,
+      "HEALTHCARE": 0.0463,
+      "CONSULTANT": 0.0463,
+      "CONSTRUCTION": 0.0451,
+      "PUBLIC-RELATIONS": 0.0447,
+      "HR": 0.0443,
+      "DESIGNER": 0.0431,
+      "ARTS": 0.0415,
+      "TEACHER": 0.0411,
+      "APPAREL": 0.039,
+      "DIGITAL-MEDIA": 0.0386,
+      "AGRICULTURE": 0.0254,
+      "AUTOMOBILE": 0.0145,
+      "BPO": 0.0089
+    }
+  },
+  "jobs": {
+    "rows": 853,
+    "columns": [
+      "company_name",
+      "job_description",
+      "position_title",
+      "description_length",
+      "model_response"
+    ],
+    "duplicate_rows": 0,
+    "null_counts": {
+      "company_name": 0,
+      "job_description": 0,
+      "position_title": 0,
+      "description_length": 0,
+      "model_response": 0
+    }
+  }
+}
