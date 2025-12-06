@@ -1,0 +1,14 @@
+streamlit
+pandas
+numpy
+scikit-learn
+joblib
+nltk
+docx2txt
+PyPDF2
+sentence-transformers
+optuna
+xgboost
+lightgbm
+matplotlib
+seaborn
