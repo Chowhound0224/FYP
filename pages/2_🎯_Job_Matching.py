@@ -9,7 +9,10 @@ import docx2txt
 from PyPDF2 import PdfReader
 import pandas as pd
 import numpy as np
+import io
+import zipfile
 
+from typing import List, Tuple
 from src.prediction.predict import predict_resume_category
 
 # ============================================================================
@@ -28,25 +31,18 @@ JOB_CATEGORIES = [
     "ACCOUNTANT",
     "ADVOCATE",
     "AGRICULTURE",
-    "APPAREL",
-    "ARTS",
-    "AUTOMOBILE",
     "AVIATION",
-    "BANKING",
-    "BPO",
     "BUSINESS-DEVELOPMENT",
     "CHEF",
     "CONSTRUCTION",
     "CONSULTANT",
     "DESIGNER",
-    "DIGITAL-MEDIA",
     "ENGINEERING",
     "FINANCE",
     "FITNESS",
     "HEALTHCARE",
     "HR",
     "INFORMATION-TECHNOLOGY",
-    "PUBLIC-RELATIONS",
     "SALES",
     "TEACHER"
 ]
@@ -123,7 +119,10 @@ def extract_text_from_file(uploaded_file) -> str:
             pdf_reader = PdfReader(uploaded_file)
             text = ""
             for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
+                page_text = page.extract_text() or ""
+                text += page_text + "\n"
+
+
             return text
 
         elif suffix.endswith(".docx"):
@@ -140,6 +139,47 @@ def extract_text_from_file(uploaded_file) -> str:
     except Exception as e:
         st.error(f"Error extracting text: {str(e)}")
         return ""
+
+
+def extract_resumes_from_zip(uploaded_zip) -> List[Tuple[str, str]]:
+
+    """
+    Extract multiple resumes from a ZIP file.
+
+    Returns a list of (filename, extracted_text)
+    Only processes .pdf, .docx, .txt inside the zip.
+    """
+    resumes = []
+
+    try:
+        with zipfile.ZipFile(uploaded_zip) as zf:
+            for name in zf.namelist():
+                # Skip folders
+                if name.endswith("/"):
+                    continue
+
+                lower = name.lower()
+                if not lower.endswith((".pdf", ".docx", ".txt")):
+                    # Skip non-resume files
+                    continue
+
+                with zf.open(name) as f:
+                    data = f.read()
+
+                # Create a file-like object that looks like an uploaded file
+                fake_file = io.BytesIO(data)
+                fake_file.name = name  # So extract_text_from_file can read suffix
+                fake_file.seek(0)  
+
+                text = extract_text_from_file(fake_file)
+                if text.strip():
+                    resumes.append((name, text))
+
+    except Exception as e:
+        st.error(f"Error reading ZIP file: {str(e)}")
+
+    return resumes
+
 
 
 def calculate_match_score(predicted_category: str, target_category: str, confidence: float) -> float:
@@ -195,44 +235,68 @@ st.markdown("""
 
 # Job requirements form
 with st.form("job_form"):
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1, 1])
 
+    # ---- TARGET CATEGORY ----
     with col1:
-        target_category = st.selectbox(
+        category_option = st.selectbox(
             "🎯 Target Job Category",
-            options=JOB_CATEGORIES,
-            help="Select the category you're hiring for"
+            ["-- Select Category --"] + JOB_CATEGORIES + ["Other (type manually)"],
+            help="Choose a category or select 'Other' to enter your own."
         )
 
+        # If user selects "Other", show text input
+        if category_option == "Other (type manually)":
+            custom_category = st.text_input(
+                "🔤 Enter Custom Category",
+                placeholder="e.g., DATA SCIENTIST, MARKETING"
+            ).strip().upper()
+            final_category = custom_category
+        elif category_option != "-- Select Category --":
+            final_category = category_option.upper()
+        else:
+            final_category = ""
+
+    # ---- JOB TITLE ----
     with col2:
         job_title = st.text_input(
             "💼 Job Title",
-            placeholder="e.g., Senior Software Engineer, Marketing Manager",
-            help="Enter the specific job title"
-        )
+            placeholder="e.g., Senior Software Engineer",
+            help="Enter the job title for this role."
+        ).strip()
 
+    # ---- JOB DESCRIPTION ----
     job_description = st.text_area(
         "📝 Job Description & Requirements",
-        height=200,
-        placeholder="""Describe the role, key responsibilities, and requirements. For example:
-
-- 5+ years of experience in software development
-- Proficiency in Python, Java, or C++
-- Experience with cloud platforms (AWS, Azure, GCP)
-- Strong problem-solving and communication skills
-- Bachelor's degree in Computer Science or related field
-        """,
-        help="Be as detailed as possible for better matching"
+        height=180,
+        placeholder=(
+            "- Required skills\n"
+            "- Responsibilities\n"
+            "- Years of experience\n"
+            "- Tools/technologies\n"
+            "- Qualifications"
+        )
     )
 
-    submitted = st.form_submit_button("💾 Save Job Requirements", type="primary", use_container_width=True)
+    # ---- SUBMIT BUTTON ----
+    submitted = st.form_submit_button(
+        "💾 Save Job Requirements",
+        type="primary",
+        use_container_width=True,
+        key="save_job_requirements"
+    )
 
+    # ---- FORM VALIDATION ----
     if submitted:
-        if not job_title or not job_description:
-            st.error("⚠️ Please fill in both job title and description")
+        if not final_category:
+            st.error("⚠️ Please select or enter a job category.")
+        elif not job_title:
+            st.error("⚠️ Please enter a job title.")
+        elif not job_description.strip():
+            st.error("⚠️ Please enter a job description.")
         else:
             st.session_state['job_requirements'] = {
-                'category': target_category,
+                'category': final_category,
                 'title': job_title,
                 'description': job_description
             }
@@ -249,164 +313,250 @@ st.markdown("---")
 st.markdown("### 📤 Step 2: Upload Candidate Resumes")
 
 uploaded_files = st.file_uploader(
-    "Upload candidate resumes (PDF, DOCX, TXT)",
-    type=["pdf", "docx", "txt"],
+    "Upload candidate resumes (PDF, DOCX, TXT) or a ZIP containing many resumes",
+    type=["pdf", "docx", "txt", "zip"],
     accept_multiple_files=True,
-    help="Upload all candidate resumes you want to rank"
+    help="You can drag & drop multiple files, including a ZIP with many resumes."
 )
 
-if uploaded_files and 'job_requirements' in st.session_state:
-    st.success(f"✅ {len(uploaded_files)} resume(s) uploaded")
+MAX_RESUMES = 500  # hard limit on how many resumes we process in total
 
+all_resume_items = []  # list of dicts: {"filename": ..., "text": ...}
+
+if uploaded_files:
+    for uf in uploaded_files:
+        name = uf.name.lower()
+
+        # If it's a ZIP file, expand it
+        if name.endswith(".zip"):
+            extracted = extract_resumes_from_zip(uf)
+            for fname, text in extracted:
+                all_resume_items.append({"filename": fname, "text": text})
+        else:
+            # Normal single resume file
+            text = extract_text_from_file(uf)
+            if text.strip():
+                all_resume_items.append({"filename": uf.name, "text": text})
+
+    total_resumes = len(all_resume_items)
+
+    if total_resumes == 0:
+        st.warning("⚠️ No readable resumes found in the uploaded files.")
+    else:
+        # Enforce max limit
+        if total_resumes > MAX_RESUMES:
+            st.warning(
+                f"⚠️ Found {total_resumes} resumes in total. "
+                f"Only the first {MAX_RESUMES} will be processed for ranking."
+            )
+            all_resume_items = all_resume_items[:MAX_RESUMES]
+            total_resumes = MAX_RESUMES
+
+        st.success(f"✅ {total_resumes} resume(s) ready for analysis (limit: {MAX_RESUMES}).")
+
+
+# ============================================================================
+# STEP 3: RUN MATCHING & DISPLAY RESULTS
+# ============================================================================
+
+# We'll keep candidates in session_state so they persist after rerun
+if "candidates" not in st.session_state:
+    st.session_state["candidates"] = []
+
+if all_resume_items and 'job_requirements' in st.session_state:
     if st.button("🚀 Rank Candidates", type="primary", use_container_width=True):
         req = st.session_state['job_requirements']
         candidates = []
 
-        # Progress tracking
+        total = len(all_resume_items)
         progress_bar = st.progress(0)
         status_text = st.empty()
 
-        # Process each resume
-        for idx, uploaded_file in enumerate(uploaded_files):
-            status_text.text(f"Analyzing {idx + 1}/{len(uploaded_files)}: {uploaded_file.name}")
+        for idx, item in enumerate(all_resume_items):
+            filename = item["filename"]
+            resume_text = item["text"]
 
-            resume_text = extract_text_from_file(uploaded_file)
+            status_text.text(f"Analyzing {idx + 1}/{total}: {filename}")
 
             if resume_text.strip():
                 try:
                     result = predict_resume_category(resume_text)
 
-                    # Calculate match score
+                    # ✅ Correct call: predicted, target, confidence
                     match_score = calculate_match_score(
-                        result['predicted_category'],
-                        req['category'],
-                        result['confidence_score']
+                        predicted_category=result['predicted_category'].upper(),
+                        target_category=req['category'].upper(),
+                        confidence=result['confidence_score']
                     )
 
                     candidates.append({
-                        "filename": uploaded_file.name,
+                        "filename": filename,
                         "predicted_category": result['predicted_category'],
                         "confidence": result['confidence_score'],
                         "match_score": match_score,
-                        "result": result
+                        "result": result,
                     })
                 except Exception as e:
-                    st.error(f"Error processing {uploaded_file.name}: {str(e)}")
+                    st.error(f"Error processing {filename}: {str(e)}")
             else:
-                st.warning(f"⚠️ Could not extract text from {uploaded_file.name}")
+                st.warning(f"⚠️ Could not extract text from {filename}")
 
-            progress_bar.progress((idx + 1) / len(uploaded_files))
+            progress_bar.progress((idx + 1) / total)
 
         progress_bar.empty()
         status_text.empty()
 
-        # Sort by match score
+        # Sort candidates by score and save to session_state
         candidates = sorted(candidates, key=lambda x: x['match_score'], reverse=True)
+        st.session_state["candidates"] = candidates
 
-        # Display rankings
-        if candidates:
-            st.markdown("---")
-            st.markdown("## 🏆 Candidate Rankings")
 
-            # Summary stats
-            col1, col2, col3, col4 = st.columns(4)
+# ============================================================================
+# DISPLAY RESULTS (IF ANY)
+# ============================================================================
 
-            with col1:
-                st.metric("Total Candidates", len(candidates))
+candidates = st.session_state.get("candidates", [])
 
-            with col2:
-                perfect_matches = sum(1 for c in candidates if c['predicted_category'] == req['category'])
-                st.metric("Perfect Matches", perfect_matches)
+if candidates and 'job_requirements' in st.session_state:
+    req = st.session_state['job_requirements']
 
-            with col3:
-                avg_match = sum(c['match_score'] for c in candidates) / len(candidates)
-                st.metric("Avg Match Score", f"{avg_match:.1f}%")
+    st.markdown("---")
+    st.markdown("## 🏆 Candidate Rankings")
 
-            with col4:
-                high_matches = sum(1 for c in candidates if c['match_score'] >= 70)
-                st.metric("Strong Candidates", high_matches)
+    # Summary stats
+    col1, col2, col3, col4 = st.columns(4)
 
-            st.markdown("---")
+    with col1:
+        st.metric("Total Candidates", len(candidates))
 
-            # Display ranked candidates
-            for rank, candidate in enumerate(candidates, 1):
-                rank_class = get_rank_class(rank)
-                score_class = get_score_class(candidate['match_score'])
+    with col2:
+        perfect_matches = sum(
+            1 for c in candidates
+            if c['predicted_category'].upper() == req['category'].upper()
+        )
+        st.metric("Perfect Matches", perfect_matches)
 
-                # Medal for top 3
-                medal = ""
-                if rank == 1:
-                    medal = "🥇"
-                elif rank == 2:
-                    medal = "🥈"
-                elif rank == 3:
-                    medal = "🥉"
+    with col3:
+        avg_match = sum(c['match_score'] for c in candidates) / len(candidates)
+        st.metric("Avg Match Score", f"{avg_match:.1f}%")
 
-                with st.container():
-                    st.markdown(f"""
-                    <div class="rank-card {rank_class}">
-                        <h3>{medal} #{rank} — {candidate['filename']}</h3>
-                    </div>
-                    """, unsafe_allow_html=True)
+    with col4:
+        high_matches = sum(1 for c in candidates if c['match_score'] >= 70)
+        st.metric("Strong Candidates", high_matches)
 
-                    col1, col2, col3 = st.columns(3)
+    st.markdown("---")
 
-                    with col1:
-                        st.markdown(f"**Match Score**")
-                        st.markdown(f'<p class="{score_class}">{candidate["match_score"]:.1f}%</p>', unsafe_allow_html=True)
+    # Summary table
+    summary_data = []
+    for rank, candidate in enumerate(candidates, 1):
+        summary_data.append({
+            "Rank": rank,
+            "Filename": candidate['filename'],
+            "Match Score": f"{candidate['match_score']:.1f}%",
+            "Predicted Category": candidate['predicted_category'],
+            "Category Match": "Yes" if candidate['predicted_category'].upper() == req['category'].upper() else "No",
+        })
 
-                    with col2:
-                        st.markdown("**Predicted Category**")
-                        category_match = "✅" if candidate['predicted_category'] == req['category'] else "❌"
-                        st.markdown(f"{category_match} {candidate['predicted_category']}")
+    summary_df = pd.DataFrame(summary_data)
 
-                    with col3:
-                        st.markdown("**Confidence**")
-                        st.markdown(f"{candidate['confidence']*100:.1f}%")
+    def color_rows(row):
+        score = float(row['Match Score'].replace('%', ''))
+        if row['Category Match'] == 'Yes' or score >= 70:
+            return ['background-color: #BDECB4'] * len(row)  # pastel green
+        elif score >= 50:
+            return ['background-color: #FFFACD'] * len(row)  # pale yellow
+        else:
+            return [''] * len(row)
 
-                    # Expandable details
-                    with st.expander(f"📊 View Full Analysis"):
-                        st.markdown("**Top Predicted Categories:**")
-                        top_probs = sorted(
-                            candidate['result']['probabilities'].items(),
-                            key=lambda x: x[1],
-                            reverse=True
-                        )[:5]
+    st.dataframe(
+        summary_df.style.apply(color_rows, axis=1),
+        hide_index=True,
+        use_container_width=True,
+    )
 
-                        for cat, prob in top_probs:
-                            st.progress(prob, text=f"{cat}: {prob*100:.1f}%")
+    st.markdown("---")
+    st.markdown("### Detailed Candidate Cards")
 
-            # Export rankings
-            st.markdown("---")
-            st.markdown("### 📥 Export Rankings")
+    # Detailed cards
+    for rank, candidate in enumerate(candidates, 1):
+        rank_class = get_rank_class(rank)
+        score_class = get_score_class(candidate['match_score'])
 
-            export_data = []
-            for rank, candidate in enumerate(candidates, 1):
-                export_data.append({
-                    "Rank": rank,
-                    "Filename": candidate['filename'],
-                    "Match Score": f"{candidate['match_score']:.1f}%",
-                    "Predicted Category": candidate['predicted_category'],
-                    "Confidence": f"{candidate['confidence']*100:.1f}%",
-                    "Category Match": "Yes" if candidate['predicted_category'] == req['category'] else "No"
-                })
+        medal = ""
+        if rank == 1:
+            medal = "🥇"
+        elif rank == 2:
+            medal = "🥈"
+        elif rank == 3:
+            medal = "🥉"
 
-            df = pd.DataFrame(export_data)
-            csv = df.to_csv(index=False).encode('utf-8')
+        with st.container():
+            st.markdown(f"""
+            <div class="rank-card {rank_class}">
+                <h3>{medal} #{rank} — {candidate['filename']}</h3>
+            </div>
+            """, unsafe_allow_html=True)
 
-            st.download_button(
-                label="📥 Download Rankings (CSV)",
-                data=csv,
-                file_name=f"candidate_rankings_{req['category']}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            c1, c2, c3 = st.columns(3)
 
-elif uploaded_files and 'job_requirements' not in st.session_state:
-    st.warning("⚠️ Please define job requirements first (Step 1)")
+            with c1:
+                st.markdown("**Match Score**")
+                st.markdown(
+                    f'<p class="{score_class}">{candidate["match_score"]:.1f}%</p>',
+                    unsafe_allow_html=True,
+                )
 
+            with c2:
+                st.markdown("**Predicted Category**")
+                category_match = (
+                    "✅" if candidate['predicted_category'].upper() == req['category'].upper() else "❌"
+                )
+                st.markdown(f"{category_match} {candidate['predicted_category']}")
+
+            with c3:
+                st.markdown("**Confidence**")
+                st.markdown(f"{candidate['confidence']*100:.1f}%")
+
+            with st.expander("📊 View Full Analysis"):
+                st.markdown("**Top Predicted Categories:**")
+                top_probs = sorted(
+                    candidate['result']['probabilities'].items(),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[:5]
+
+                for cat, prob in top_probs:
+                    st.progress(prob, text=f"{cat}: {prob*100:.1f}%")
+
+    # Export rankings
+    st.markdown("---")
+    st.markdown("### 📥 Export Rankings")
+
+    export_data = []
+    for rank, candidate in enumerate(candidates, 1):
+        export_data.append({
+            "Rank": rank,
+            "Filename": candidate['filename'],
+            "Match Score": f"{candidate['match_score']:.1f}%",
+            "Predicted Category": candidate['predicted_category'],
+            "Confidence": f"{candidate['confidence']*100:.1f}%",
+            "Category Match": "Yes" if candidate['predicted_category'].upper() == req['category'].upper() else "No",
+        })
+
+    df = pd.DataFrame(export_data)
+    csv = df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="📥 Download Rankings (CSV)",
+        data=csv,
+        file_name=f"candidate_rankings_{req['category']}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
 else:
-    st.info("👆 Upload candidate resumes to start ranking")
+    st.info("👆 Upload resumes and save job requirements to view rankings.")
+
+
 
 # Back to home
 st.markdown("---")

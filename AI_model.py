@@ -202,7 +202,7 @@ def clean_text(text: Any, config: CleanConfig = DEFAULT_CLEAN_CONFIG) -> str:
         tokens = [LEMMATIZER.lemmatize(t) for t in tokens]
 
     # TRUNCATE overly long resumes (helps A LOT)
-    MAX_TOKENS = 600
+    MAX_TOKENS = 800
     if len(tokens) > MAX_TOKENS:
         tokens = tokens[:MAX_TOKENS]
 
@@ -279,11 +279,31 @@ def build_param_grid(class_weight: Optional[str]):
     nb = MultinomialNB()
 
     return [
-        {'tfidf__ngram_range': [(1,2), (1,3)], 'tfidf__max_features': [5000, 10000],
-         'clf': [logistic], 'clf__C': [0.5, 1.0, 2.0, 5.0]},
-        {'tfidf__ngram_range': [(1,2)], 'clf': [sgd], 'clf__alpha': [1e-4, 1e-3, 1e-2]},
-        {'tfidf__ngram_range': [(1,2)], 'clf': [svc], 'clf__C': [0.5, 1.0, 2.0]},
-        {'tfidf__ngram_range': [(1,1)], 'clf': [nb], 'tfidf__max_features': [5000, 7000]}
+        {
+            'tfidf__ngram_range': [(1, 2), (1, 3)],
+            'tfidf__max_features': [5000, 10000, 20000],
+            'tfidf__min_df': [1, 2, 3],
+            'tfidf__max_df': [0.9, 0.95],
+            'clf': [logistic],
+            'clf__C': [0.5, 1.0, 2.0, 5.0]
+        },
+        {
+            'tfidf__ngram_range': [(1, 2)],
+            'tfidf__max_features': [10000, 20000],
+            'clf': [sgd],
+            'clf__alpha': [1e-4, 1e-3, 1e-2]
+        },
+        {
+            'tfidf__ngram_range': [(1, 2)],
+            'tfidf__max_features': [10000, 20000],
+            'clf': [svc],
+            'clf__C': [0.5, 1.0, 2.0]
+        },
+        {
+            'tfidf__ngram_range': [(1, 1)],
+            'tfidf__max_features': [5000, 7000],
+            'clf': [nb]
+        }
     ]
 
 
@@ -321,14 +341,47 @@ def prepare_training_data(df: pd.DataFrame) -> Dict[str, Any]:
         "label_counts": label_counts.to_dict(),
     }
 
+from sklearn.pipeline import FeatureUnion
 
 def train_and_evaluate(training_bundle: Dict[str, Any]) -> Dict[str, Any]:
+
     pipeline = Pipeline(
     [
-        ('tfidf', TfidfVectorizer(sublinear_tf=True, smooth_idf=True)),
-        ('clf', LogisticRegression(max_iter=200)),  # Placeholder; overridden by grid
+        ('tfidf', TfidfVectorizer(
+            sublinear_tf=True,
+            smooth_idf=True,
+            min_df=2,
+            max_df=0.9
+        )),
+        ('clf', LogisticRegression(max_iter=200)),
     ]
     )
+
+    word_tfidf = TfidfVectorizer(
+        sublinear_tf=True,
+        smooth_idf=True,
+        ngram_range=(1, 2),
+        min_df=2,
+        max_df=0.9,
+    )
+
+    char_tfidf = TfidfVectorizer(
+        analyzer='char',
+        ngram_range=(3, 5),
+        min_df=3
+    )
+
+    pipeline = Pipeline(
+        [
+            ('features', FeatureUnion([
+                ('word', word_tfidf),
+                ('char', char_tfidf),
+            ])),
+            ('clf', LogisticRegression(max_iter=200)),  # placeholder
+        ]
+    )
+
+
 
     from sklearn.ensemble import VotingClassifier
     from sklearn.naive_bayes import MultinomialNB
@@ -1020,7 +1073,48 @@ def main() -> None:
     clean_config = DEFAULT_CLEAN_CONFIG
 
     resume_df = load_dataset(RAW_RESUME_PATH, REQUIRED_RESUME_COLS, 'Resume')
+
+    removed_rows = resume_df[resume_df['Category'].isin(categories_to_drop)]
+    removed_rows.to_csv("removed_categories_backup.csv", index=False)
+    print("\nSaved removed category samples to removed_categories_backup.csv")
+
+
+    removed = categories_to_drop
+    print(f"\nTotal samples removed: {len(resume_df[resume_df['Category'].isin(removed)])}")
+
+    categories_to_drop = [
+        "APPAREL",
+        "ARTS",
+        "AUTOMOBILE",
+        "BPO",
+        "DIGITAL-MEDIA",
+        "BANKING",
+        "PUBLIC-RELATIONS"
+        # Add/remove more if needed
+    ]
+
+    print("\nBefore dropping categories:")
+    print(resume_df['Category'].value_counts())
+
+    # 🔹 1. Save removed rows (for documentation / supervisor)
+    removed_rows = resume_df[resume_df['Category'].isin(categories_to_drop)]
+    removed_rows.to_csv("removed_categories_backup.csv", index=False)
+    print("\nSaved removed category samples to removed_categories_backup.csv")
+
+    # 🔹 2. Actually drop them
+    resume_df = resume_df[~resume_df['Category'].isin(categories_to_drop)]
+
+    print("\nAfter dropping categories:")
+    print(resume_df['Category'].value_counts())
+    print(f"\nDropped categories: {categories_to_drop}")
+
     job_df = load_dataset(TRAINING_DATA_PATH, REQUIRED_JOB_COLS, 'Job description')
+
+
+    # ===============================
+    # Continue with cleaning...
+    # ===============================
+
 
     profile = {
         'generated_at': datetime.utcnow().isoformat(),
@@ -1054,6 +1148,15 @@ def main() -> None:
         CONFUSION_MATRIX_PATH,
     )
     print("[OK] Evaluation artifacts saved to", ARTIFACTS_DIR)
+
+    # 👇👇 Add this part to print the “accuracy matrix” (confusion matrix)
+    cm = np.array(evaluation['confusion_matrix'])
+    labels = evaluation['confusion_matrix_labels']
+    cm_df = pd.DataFrame(cm, index=labels, columns=labels)
+
+    print("\n🔢 Confusion Matrix (rows = true labels, columns = predicted labels):")
+    print(cm_df)
+
 
     # --- Step 4.2: Display model performance summary ---
     print("\n📈 Model Performance Summary:")
@@ -1159,167 +1262,164 @@ def train_improved_model() -> None:
     - Custom features
     - Ensemble models
     - Optuna hyperparameter optimization
-
-    This achieves 75-85% accuracy (vs 69% with old approach)
     """
     ensure_artifacts_dir()
     print("=" * 80)
     print("IMPROVED MODEL TRAINING")
     print("=" * 80)
 
-    # Load and prepare data
+    # Load dataset
     resume_df = load_dataset(RAW_RESUME_PATH, REQUIRED_RESUME_COLS, 'Resume')
     print(f"[OK] Loaded {len(resume_df)} resumes")
 
-    # Apply cleaning
+    # ===============================
+    # 🔥 DROP SELECTED CATEGORIES HERE
+    # ===============================
+    categories_to_drop = ["APPAREL", "ARTS", "AUTOMOBILE", "BPO", "DIGITAL-MEDIA", "BANKING", "PUBLIC-RELATIONS"]
+
+    print("\nBefore dropping categories:")
+    print(resume_df['Category'].value_counts())
+
+    # Save removed rows
+    removed_rows = resume_df[resume_df['Category'].isin(categories_to_drop)]
+    removed_rows.to_csv("removed_categories_backup.csv", index=False)
+    print("\nSaved removed category samples to removed_categories_backup.csv")
+
+    # Drop the categories
+    resume_df = resume_df[~resume_df['Category'].isin(categories_to_drop)]
+
+    print("\nAfter dropping categories:") 
+    print(resume_df['Category'].value_counts())
+    print(f"\nDropped categories: {categories_to_drop}")
+    # ===============================
+
+    # Cleaning
     clean_config = DEFAULT_CLEAN_CONFIG
     cleaned_resumes = apply_cleaning(resume_df, 'Resume_str', 'cleaned_text', clean_config)
     cleaned_resumes = cleaned_resumes[cleaned_resumes['cleaned_text'].str.strip() != ""]
     cleaned_resumes = cleaned_resumes.drop_duplicates(subset=['cleaned_text'])
 
-    X_text = cleaned_resumes['Resume_str'].values  # Original text for SBERT
-    X_cleaned = cleaned_resumes['cleaned_text'].values  # Cleaned text for TF-IDF
+    X_text = cleaned_resumes['Resume_str'].values
+    X_cleaned = cleaned_resumes['cleaned_text'].values
     y_raw = cleaned_resumes['Category'].values
 
-    # Encode labels to numeric values for XGBoost
+    # Encode labels
     label_encoder = LabelEncoder()
     y = label_encoder.fit_transform(y_raw)
-    print(f"[OK] Encoded {len(label_encoder.classes_)} categories: {label_encoder.classes_[:5]}...")
+    print(f"[OK] Encoded {len(label_encoder.classes_)} categories.")
 
-    print(f"[OK] Cleaned data: {len(X_text)} samples")
-
-    # === FEATURE EXTRACTION ===
-    print("\nExtracting features...")
-
-    # 1. SBERT Embeddings
-    print("  - Loading SBERT model...")
+    # SBERT embeddings
+    print("\nExtracting SBERT features...")
     sbert_model = load_sbert_model()
-    print("  - Generating SBERT embeddings (this may take a minute)...")
     sbert_embeddings = sbert_model.encode(list(X_text), show_progress_bar=True)
-    print(f"  [OK] SBERT embeddings shape: {sbert_embeddings.shape}")
 
-    # 2. TF-IDF Features
-    print("  - Computing TF-IDF features...")
-    tfidf = TfidfVectorizer(
-        max_features=5000,
-        ngram_range=(1, 2),
-        min_df=2,
-        max_df=0.8,
-        sublinear_tf=True
-    )
+    # TF-IDF features
+    print("\nExtracting TF-IDF features...")
+    tfidf = TfidfVectorizer(max_features=5000, ngram_range=(1, 2), min_df=2, max_df=0.8)
     tfidf_features = tfidf.fit_transform(X_cleaned).toarray()
-    print(f"  [OK] TF-IDF features shape: {tfidf_features.shape}")
 
-    # 3. Custom Features
-    print("  - Extracting custom features...")
-    custom_features_list = [extract_custom_features(text) for text in X_text]
-    custom_features_df = pd.DataFrame(custom_features_list)
-    custom_features = custom_features_df.values
-    print(f"  [OK] Custom features shape: {custom_features.shape}")
+    # Custom features
+    print("\nExtracting custom features...")
+    custom_features = pd.DataFrame([extract_custom_features(t) for t in X_text]).values
 
-    # === COMBINE ALL FEATURES ===
-    print("\nCombining features...")
-    # Standardize custom features
     scaler = StandardScaler()
-    custom_features_scaled = scaler.fit_transform(custom_features)
+    custom_scaled = scaler.fit_transform(custom_features)
 
-    # Combine: SBERT + TF-IDF + Custom
-    X_combined = np.hstack([sbert_embeddings, tfidf_features, custom_features_scaled])
-    print(f"[OK] Combined features shape: {X_combined.shape}")
+    # Combine all features
+    X_combined = np.hstack([sbert_embeddings, tfidf_features, custom_scaled])
+    print(f"[OK] Combined feature shape: {X_combined.shape}")
 
-    # === TRAIN-TEST SPLIT ===
+    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X_combined, y, test_size=0.20, random_state=42, stratify=y
     )
-    print(f"\nTrain: {len(X_train)}, Test: {len(X_test)}")
 
-    # === OPTUNA OPTIMIZATION ===
-    print("\nStarting Optuna hyperparameter optimization...")
-    print("   This will try 10 different configurations to find the best model")
+    # OPTUNA optimization
+    print("\nStarting Optuna optimization...")
 
     def objective(trial):
-        # Suggest hyperparameters
         model_type = trial.suggest_categorical('model', ['xgboost', 'logistic', 'random_forest'])
+
+        clf = None
 
         if model_type == 'xgboost':
             clf = xgb.XGBClassifier(
                 n_estimators=trial.suggest_int('n_estimators', 100, 500),
-                max_depth=trial.suggest_int('max_depth', 3, 10),
+                max_depth=trial.suggest_int('max_depth', 5, 15),
                 learning_rate=trial.suggest_float('learning_rate', 0.01, 0.3),
-                subsample=trial.suggest_float('subsample', 0.6, 1.0),
+                subsample=trial.suggest_float('subsample', 0.5, 1.0),
+                colsample_bytree=trial.suggest_float('colsample_bytree', 0.5, 1.0),
+                reg_lambda=trial.suggest_float('reg_lambda', 0.1, 10.0),
                 random_state=42,
                 eval_metric='logloss'
             )
+
         elif model_type == 'logistic':
             clf = LogisticRegression(
                 C=trial.suggest_float('C', 0.1, 10.0),
                 max_iter=1000,
                 random_state=42
             )
-        else:  # random_forest
+        
+        else:
             clf = RandomForestClassifier(
                 n_estimators=trial.suggest_int('n_estimators', 100, 500),
                 max_depth=trial.suggest_int('max_depth', 10, 50),
                 min_samples_split=trial.suggest_int('min_samples_split', 2, 10),
                 random_state=42
             )
+        
+        # Safety check: if somehow nothing matched
+        if clf is None:
+            raise RuntimeError(f"Unknown model_type from Optuna: {model_type}")
 
-        # Cross-validation (sequential processing is faster for large feature sets)
+        # 3) Cross-validate
         scores = cross_val_score(clf, X_train, y_train, cv=5, scoring='f1_weighted', n_jobs=-1)
         return scores.mean()
 
-    # Run optimization
-    study = optuna.create_study(
-        direction='maximize',
-        sampler=TPESampler(seed=42)
-    )
-    study.optimize(objective, n_trials=10, show_progress_bar=True)
+    study = optuna.create_study(direction='maximize', sampler=TPESampler(seed=42))
+    study.optimize(objective, n_trials=50, show_progress_bar=True)
 
-    print(f"\n[OK] Best F1 Score: {study.best_value:.4f}")
-    print(f"[OK] Best Parameters: {study.best_params}")
+    print(f"\nBest F1 Score: {study.best_value:.4f}")
+    print(f"Best Params: {study.best_params}")
 
-    # === TRAIN BEST MODEL ===
-    print("\nTraining final model with best parameters...")
-    best_params = study.best_params
+    # Train final model
+    best_params = study.best_params 
+    model_type = best_params['model']
 
-    if best_params['model'] == 'xgboost':
+    if model_type == 'xgboost':
         best_model = xgb.XGBClassifier(
             n_estimators=best_params['n_estimators'],
             max_depth=best_params['max_depth'],
             learning_rate=best_params['learning_rate'],
             subsample=best_params['subsample'],
+            colsample_bytree=best_params['colsample_bytree'],
+            reg_lambda=best_params['reg_lambda'],
             random_state=42,
             eval_metric='logloss'
         )
-    elif best_params['model'] == 'logistic':
-        best_model = LogisticRegression(
-            C=best_params['C'],
-            max_iter=1000,
-            random_state=42
-        )
+
+    elif model_type == 'logistic':
+        best_model = LogisticRegression(C=best_params['C'], max_iter=1000)
     else:
         best_model = RandomForestClassifier(
             n_estimators=best_params['n_estimators'],
             max_depth=best_params['max_depth'],
-            min_samples_split=best_params['min_samples_split'],
-            random_state=42
+            min_samples_split=best_params['min_samples_split']
         )
 
     best_model.fit(X_train, y_train)
 
-    # === EVALUATE ===
     y_pred = best_model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, average='weighted')
 
-    print("\n" + "=" * 80)
-    print("IMPROVED MODEL PERFORMANCE")
-    print("=" * 80)
-    print(f"[OK] Accuracy:      {accuracy:.4f}  ({accuracy*100:.2f}%)")
-    print(f"[OK] F1-Weighted:   {f1:.4f}  ({f1*100:.2f}%)")
-    print(f"[OK] Model Type:    {best_params['model']}")
+    print("\nIMPROVED MODEL PERFORMANCE")
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"F1-Weighted: {f1:.4f}")
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+
 
     # === SAVE IMPROVED MODEL ===
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1364,7 +1464,10 @@ def train_improved_model() -> None:
 
 # NOTE: Always keep this at the very bottom — nothing below it
 if __name__ == '__main__':
-    main()
+    # main()  # old pipeline
+    train_improved_model()  # use improved pipeline
+
+
 
 
 
