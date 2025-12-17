@@ -1090,7 +1090,6 @@ def main() -> None:
         "DIGITAL-MEDIA",
         "BANKING",
         "PUBLIC-RELATIONS"
-        # Add/remove more if needed
     ]
 
     print("\nBefore dropping categories:")

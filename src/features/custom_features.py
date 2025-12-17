@@ -34,25 +34,93 @@ def extract_custom_features(resume_text: str) -> Dict[str, Any]:
 
     # --- TECH SKILLS ---
     tech_skills = [
-        # Programming languages
+        # === PROGRAMMING LANGUAGES ===
         'python', 'java', 'javascript', 'c++', 'c#', 'php', 'ruby', 'go', 'swift',
-        # Data / ML
-        'sql', 'pandas', 'numpy', 'tensorflow', 'pytorch', 'scikit', 'machine learning', 'deep learning',
-        # Cloud
-        'aws', 'azure', 'gcp', 'cloud',
-        # DevOps
-        'docker', 'kubernetes', 'jenkins', 'git', 'linux',
-        # Web
-        'html', 'css', 'react', 'angular', 'vue', 'node', 'nodejs'
+        'typescript', 'kotlin', 'scala', 'rust', 'r', 'matlab', 'perl', 'shell',
+        'bash', 'powershell', 'objective-c', 'dart', 'lua', 'groovy',
+
+        # === WEB DEVELOPMENT ===
+        'html', 'css', 'react', 'angular', 'vue', 'node', 'nodejs', 'express',
+        'django', 'flask', 'fastapi', 'spring', 'spring boot', 'asp.net', 'laravel',
+        'jquery', 'bootstrap', 'tailwind', 'sass', 'webpack', 'next.js', 'nuxt',
+
+        # === MOBILE DEVELOPMENT ===
+        'android', 'ios', 'flutter', 'react native', 'xamarin', 'ionic', 'swift ui',
+
+        # === DATABASES ===
+        'sql', 'mysql', 'postgresql', 'mongodb', 'oracle', 'sql server', 'redis',
+        'cassandra', 'dynamodb', 'sqlite', 'mariadb', 'elasticsearch', 'neo4j',
+
+        # === DATA SCIENCE & ML ===
+        'pandas', 'numpy', 'tensorflow', 'pytorch', 'scikit', 'scikit-learn',
+        'machine learning', 'deep learning', 'nlp', 'computer vision', 'keras',
+        'xgboost', 'lightgbm', 'spark', 'hadoop', 'data analysis', 'statistics',
+        'matplotlib', 'seaborn', 'plotly', 'jupyter', 'rstudio',
+
+        # === CLOUD & DEVOPS ===
+        'aws', 'azure', 'gcp', 'cloud', 'docker', 'kubernetes', 'jenkins',
+        'ci/cd', 'terraform', 'ansible', 'chef', 'puppet', 'circleci',
+        'github actions', 'gitlab', 'bitbucket', 'travis ci',
+
+        # === VERSION CONTROL ===
+        'git', 'github', 'svn', 'mercurial',
+
+        # === OPERATING SYSTEMS ===
+        'linux', 'unix', 'windows', 'macos', 'ubuntu', 'centos', 'debian',
+
+        # === BUSINESS INTELLIGENCE & ANALYTICS ===
+        'tableau', 'power bi', 'looker', 'qlik', 'excel', 'google analytics',
+        'sas', 'spss', 'alteryx',
+
+        # === PROJECT MANAGEMENT & COLLABORATION ===
+        'jira', 'confluence', 'trello', 'asana', 'monday', 'slack', 'teams',
+        'agile', 'scrum', 'kanban', 'waterfall',
+
+        # === TESTING & QA ===
+        'selenium', 'junit', 'pytest', 'jest', 'cypress', 'postman',
+        'unit testing', 'integration testing', 'automation testing',
+
+        # === NETWORKING & SECURITY ===
+        'tcp/ip', 'dns', 'vpn', 'firewall', 'encryption', 'ssl', 'oauth',
+        'cybersecurity', 'penetration testing', 'ethical hacking',
+
+        # === ERP & CRM ===
+        'sap', 'salesforce', 'oracle', 'dynamics', 'crm', 'erp',
+
+        # === DESIGN & MULTIMEDIA ===
+        'photoshop', 'illustrator', 'figma', 'sketch', 'adobe xd', 'canva',
+        'premiere', 'after effects', 'autocad', 'solidworks', 'ui/ux',
+
+        # === BLOCKCHAIN & EMERGING TECH ===
+        'blockchain', 'ethereum', 'solidity', 'web3', 'cryptocurrency',
+        'iot', 'edge computing', 'quantum computing',
     ]
 
     features['tech_skill_count'] = sum(1 for skill in tech_skills if skill in text_lower)
 
-        # --- SOFT SKILLS ---
+    # --- SOFT SKILLS ---
     soft_skills = [
-        'leadership', 'communication', 'teamwork',
-        'problem solving', 'management', 'analytical',
-        'collaboration', 'adaptability'
+        # === CORE PROFESSIONAL SKILLS ===
+        'leadership', 'communication', 'teamwork', 'collaboration',
+        'problem solving', 'critical thinking', 'analytical',
+        'decision making', 'time management', 'organization',
+
+        # === INTERPERSONAL SKILLS ===
+        'adaptability', 'flexibility', 'creativity', 'innovation',
+        'emotional intelligence', 'empathy', 'active listening',
+        'conflict resolution', 'negotiation', 'persuasion',
+
+        # === MANAGEMENT & LEADERSHIP ===
+        'management', 'project management', 'people management',
+        'strategic planning', 'mentoring', 'coaching', 'delegation',
+
+        # === WORK ETHIC ===
+        'self-motivated', 'proactive', 'detail-oriented', 'multitasking',
+        'work ethic', 'accountability', 'responsibility', 'initiative',
+
+        # === COMMUNICATION ===
+        'presentation', 'public speaking', 'writing', 'reporting',
+        'stakeholder management', 'client facing',
     ]
 
     features['soft_skill_count'] = sum(1 for skill in soft_skills if skill in text_lower)

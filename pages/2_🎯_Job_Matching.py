@@ -52,35 +52,38 @@ JOB_CATEGORIES = [
 # ============================================================================
 st.markdown("""
 <style>
-    .job-form {
-        background: #f8f9fa;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
+    .stApp {
+        background-color: #000000;
+        color: #FFFFFF;
+    }
+
+    h1, h2, h3 {
+        color: #A2D2FF;
     }
 
     .rank-card {
-        background: white;
+        background: #1a1a1a;
         padding: 25px;
         border-radius: 12px;
         margin: 15px 0;
         border-left: 5px solid;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(255,255,255,0.1);
+        border: 1px solid #333333;
     }
 
     .rank-gold {
         border-left-color: #FFD700 !important;
-        background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+        background: linear-gradient(135deg, #2a2200 0%, #1a1a1a 100%);
     }
 
     .rank-silver {
         border-left-color: #C0C0C0 !important;
-        background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+        background: linear-gradient(135deg, #252525 0%, #1a1a1a 100%);
     }
 
     .rank-bronze {
         border-left-color: #CD7F32 !important;
-        background: linear-gradient(135deg, #fff0e6 0%, #ffffff 100%);
+        background: linear-gradient(135deg, #2a1a00 0%, #1a1a1a 100%);
     }
 
     .rank-normal {
@@ -228,42 +231,43 @@ st.markdown('<h1 style="color: #667eea;">🎯 Job Matching & Candidate Ranking</
 
 st.markdown("""
 <div class="job-form">
-    <h2 style="margin-top: 0; color: #333;">Step 1: Define Job Requirements</h2>
-    <p style="color: #666;">Select the target job category and describe requirements</p>
+    <h2 style="margin-top: 0; color: #FFFFFF;">Step 1: Define Job Requirements</h2>
+    <p style="color: #FFFFFF;">Enter the target job category and describe requirements</p>
 </div>
 """, unsafe_allow_html=True)
 
 # Job requirements form
 with st.form("job_form"):
-    col1, col2 = st.columns([1, 1])
-
     # ---- TARGET CATEGORY ----
+    st.markdown("### 🎯 Target Job Category")
+
+    col1, col2 = st.columns([1, 2])
+
     with col1:
-        category_option = st.selectbox(
-            "🎯 Target Job Category",
-            ["-- Select Category --"] + JOB_CATEGORIES + ["Other (type manually)"],
-            help="Choose a category or select 'Other' to enter your own."
+        category_choice = st.selectbox(
+            "Choose from predefined or enter custom",
+            ["-- Select from list or enter custom below --"] + JOB_CATEGORIES,
+            label_visibility="collapsed"
         )
 
-        # If user selects "Other", show text input
-        if category_option == "Other (type manually)":
-            custom_category = st.text_input(
-                "🔤 Enter Custom Category",
-                placeholder="e.g., DATA SCIENTIST, MARKETING"
-            ).strip().upper()
-            final_category = custom_category
-        elif category_option != "-- Select Category --":
-            final_category = category_option.upper()
-        else:
-            final_category = ""
-
-    # ---- JOB TITLE ----
     with col2:
-        job_title = st.text_input(
-            "💼 Job Title",
-            placeholder="e.g., Senior Software Engineer",
-            help="Enter the job title for this role."
-        ).strip()
+        custom_input = st.text_input(
+            "Or enter custom category",
+            placeholder="e.g., DATA-SCIENTIST, MARKETING, CYBERSECURITY",
+            help="Select from dropdown OR type your own category here",
+            label_visibility="collapsed"
+        ).strip().upper()
+
+    # Determine final category with validation
+    if custom_input:
+        # User typed something custom - use that
+        final_category = custom_input
+    elif category_choice != "-- Select from list or enter custom below --":
+        # User selected from dropdown
+        final_category = category_choice.upper()
+    else:
+        # Nothing selected or entered
+        final_category = ""
 
     # ---- JOB DESCRIPTION ----
     job_description = st.text_area(
@@ -289,23 +293,24 @@ with st.form("job_form"):
     # ---- FORM VALIDATION ----
     if submitted:
         if not final_category:
-            st.error("⚠️ Please select or enter a job category.")
-        elif not job_title:
-            st.error("⚠️ Please enter a job title.")
+            st.error("⚠️ Please select a category from the dropdown or enter a custom category.")
+        elif len(final_category) < 2:
+            st.error("⚠️ Category name must be at least 2 characters long.")
+        elif not all(c.isalpha() or c in ['-', '_', ' '] for c in final_category):
+            st.error("⚠️ Category can only contain letters, hyphens, underscores, and spaces (no numbers).")
         elif not job_description.strip():
             st.error("⚠️ Please enter a job description.")
         else:
             st.session_state['job_requirements'] = {
                 'category': final_category,
-                'title': job_title,
                 'description': job_description
             }
-            st.success("✅ Job requirements saved!")
+            st.success(f"✅ Job requirements saved! Target category: **{final_category}**")
 
 # Show saved requirements
 if 'job_requirements' in st.session_state:
     req = st.session_state['job_requirements']
-    st.info(f"**Current Job:** {req['title']} | **Category:** {req['category']}")
+    st.info(f"**Target Category:** {req['category']}")
 
 st.markdown("---")
 

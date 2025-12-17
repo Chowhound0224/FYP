@@ -1,5 +1,5 @@
 """
-Main Landing Page - Resume Screening System (HCI & Pastel Redesign)
+Main Landing Page - Resume Screening System (Minimalist & Pastel Redesign)
 """
 
 import streamlit as st
@@ -15,22 +15,21 @@ st.set_page_config(
 )
 
 # ============================================================================
-# CUSTOM CSS (HCI & PASTEL THEME)
+# CUSTOM CSS (HCI & MINIMALIST THEME)
 # ============================================================================
 
 # Define a soft, pastel palette
-PASTEL_PURPLE = "#CDB4DB" # Light Lavender
-PASTEL_PINK = "#FFC8DD"   # Soft Pink
-PASTEL_BLUE = "#A2D2FF"   # Sky Blue
-PASTEL_GREEN = "#BDECB4"  # Mint Green
-TEXT_COLOR = "#333333"    # Dark Grey for readability
-ACCENT_COLOR = "#6A4C93"  # Deeper purple for buttons/accents
+PASTEL_PURPLE = "#CDB4DB" # Light Lavender (Used lightly, mainly for hover/shadow)
+PASTEL_BLUE = "#A2D2FF"   # Sky Blue (Used lightly for info boxes)
+TEXT_COLOR = "#FFFFFF"    # White text for dark background
+ACCENT_COLOR = "#A2D2FF"  # Light blue for accents on dark background
+BG_COLOR = "#000000"      # Black background
 
 st.markdown(f"""
 <style>
     /* Overall Page Style */
     .stApp {{
-        background-color: #FAFAFA; /* Very light neutral background */
+        background-color: {BG_COLOR}; 
         color: {TEXT_COLOR};
     }}
 
@@ -38,7 +37,7 @@ st.markdown(f"""
     .main-title {{
         font-size: 42px !important;
         font-weight: 700;
-        color: {ACCENT_COLOR}; /* Deeper, calming color */
+        color: {ACCENT_COLOR}; 
         text-align: center;
         margin-bottom: 5px;
         padding-top: 10px;
@@ -47,49 +46,49 @@ st.markdown(f"""
     /* Subtitle (Clear value proposition) */
     .subtitle {{
         font-size: 18px;
-        color: #777777;
+        color: #CCCCCC;
         text-align: center;
         margin-bottom: 40px;
         font-weight: 400;
     }}
 
-    /* Feature/Action Cards (HCI: Clear Call-to-Action) */
+    /* Feature/Action Cards (HCI: Use NEUTRALS for background) */
     .action-card {{
-        background-color: {PASTEL_PINK}; /* Soft pastel background */
-        border: 2px solid {PASTEL_PURPLE};
+        background-color: #1a1a1a; /* Dark gray for cards */
+        border: 1px solid #333333; /* Dark border */
         padding: 30px 20px;
         border-radius: 12px;
         color: {TEXT_COLOR};
         text-align: center;
         margin: 15px 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* Soft shadow */
+        box-shadow: 0 2px 5px rgba(255,255,255,0.1); /* Light shadow for dark theme */
         transition: all 0.3s ease;
-        height: 100%; /* Ensure equal height */
+        height: 100%;
     }}
 
     .action-card:hover {{
-        transform: translateY(-5px); /* Lift on hover */
-        box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-        background-color: {PASTEL_PURPLE}; /* Slight color shift */
+        transform: translateY(-3px); /* Less lift on hover */
+        box-shadow: 0 4px 8px rgba(255,255,255,0.2);
+        border: 1px solid {ACCENT_COLOR}; /* Use accent color on hover for feedback */
     }}
 
     .action-icon {{
         font-size: 50px;
         margin-bottom: 15px;
-        color: {ACCENT_COLOR};
+        color: {ACCENT_COLOR}; /* Keep icon colored for visibility */
     }}
 
     .action-title {{
         font-size: 24px;
         font-weight: 600;
         margin-bottom: 10px;
-        color: {ACCENT_COLOR};
+        color: {TEXT_COLOR}; /* Use dark text for title, not the accent color */
     }}
 
     .action-desc {{
         font-size: 16px;
-        color: {TEXT_COLOR};
-        min-height: 40px; /* Consistent spacing */
+        color: #CCCCCC; /* Light gray for description on dark background */
+        min-height: 40px;
     }}
 
     /* Streamlit Button Styling (Consistency) */
@@ -106,12 +105,12 @@ st.markdown(f"""
     }}
 
     .stButton>button:hover {{
-        background-color: #5A3F7A; /* Slightly darker hover */
+        background-color: #5A3F7A; 
     }}
 
-    /* Info/How-It-Works Boxes */
+    /* Info/How-It-Works Boxes (Keep light pastel for informative blocks) */
     div[data-testid="stMarkdownContainer"]>div.info {{
-        background-color: {PASTEL_BLUE}1A; /* Very light blue tint */
+        background-color: {PASTEL_BLUE}1A; 
         border-left: 5px solid {PASTEL_BLUE};
         color: {TEXT_COLOR};
         padding: 15px;
@@ -139,7 +138,7 @@ st.markdown('<p class="subtitle">Quickly identify the best candidates from your 
 
 st.markdown("---")
 
-# Feature Cards (HCI: Grouping related actions and immediate call to action)
+# Feature Cards (Action Grouping)
 st.markdown("### Choose Your Next Step")
 col1, col2 = st.columns(2)
 
@@ -149,12 +148,12 @@ with col1:
         <div class="action-icon">📂</div>
         <div class="action-title">Screen Resumes</div>
         <div class="action-desc">
-            Upload a batch of resumes (PDF, DOCX, TXT) and get instant categorization for easy sorting.
+            Upload a batch of resumes and get instant AI categorization for easy sorting.
         </div>
         {st.button("📂 Start Screening", key="btn1", use_container_width=True)}
     </div>
     """, unsafe_allow_html=True)
-    
+
     # Check if the button was clicked inside the markdown context for page switch
     if st.session_state.get('btn1'):
          st.switch_page("pages/1_📤_Resume_Upload.py")
@@ -166,12 +165,12 @@ with col2:
         <div class="action-icon">⭐</div>
         <div class="action-title">Find Best Match</div>
         <div class="action-desc">
-            Define your job requirements and rank your candidates based on an AI-powered matching score.
+            Define job requirements and rank candidates based on an AI-powered matching score.
         </div>
         {st.button("⭐ Find Matches", key="btn2", use_container_width=True)}
     </div>
     """, unsafe_allow_html=True)
-    
+
     # Check if the button was clicked inside the markdown context for page switch
     if st.session_state.get('btn2'):
         st.switch_page("pages/2_🎯_Job_Matching.py")
@@ -198,6 +197,3 @@ with col3:
 # Footer (Less prominent, clean)
 st.markdown("---")
 st.caption("AI Candidate Finder — Designed for a seamless recruitment experience.")
-
-
-

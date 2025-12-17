@@ -18,11 +18,11 @@ from src.config import (
     TEST_SIZE,
 )
 from src.utils import ensure_artifacts_dir, save_json, load_dataset
-from src.preprocessing.text_cleaning import clean_text
+from src.cleaning.text_cleaning import clean_text
 from src.features.build_features import build_combined_features
 from src.models.lightgbm_trainer import train_with_optuna
 from src.evaluation.evaluate import evaluate_model
-from src.metrics import save_confusion_matrices_both
+from src.utils.metrics import save_confusion_matrices_both
 
 
 def main():
@@ -92,7 +92,7 @@ def main():
         X_test=X_test,
         y_test=y_test,
         label_encoder=label_encoder,
-        model_type=best_params["model"]
+        model_type="xgboost"  # Fixed: XGBoost-only trainer
     )
 
     # ----------------------------------------------------------------------
