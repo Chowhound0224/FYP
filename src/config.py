@@ -87,14 +87,14 @@ DEFAULT_CLEAN_CONFIG = CleanConfig()
 # ============================================================================
 
 # SBERT model name
-SBERT_MODEL_NAME = "all-MiniLM-L6-v2"
+SBERT_MODEL_NAME = "all-mpnet-base-v2"  # Upgraded from all-MiniLM-L6-v2 (384 dims)
 
 
 # Feature dimensions
-SBERT_DIM = 768
-TFIDF_MAX_FEATURES = 25000   
+SBERT_DIM = 768  # all-mpnet-base-v2 embedding dimension
+TFIDF_MAX_FEATURES = 5000  # Reduced from 25000 for faster training and less overfitting
 CUSTOM_FEATURES_COUNT = 7
-TOTAL_FEATURES = SBERT_DIM + TFIDF_MAX_FEATURES + CUSTOM_FEATURES_COUNT  # 5391
+TOTAL_FEATURES = SBERT_DIM + TFIDF_MAX_FEATURES + CUSTOM_FEATURES_COUNT  # 5775
 
 # TF-IDF configuration
 TFIDF_CONFIG = {

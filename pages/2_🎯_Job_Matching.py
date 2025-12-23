@@ -9,11 +9,10 @@ import docx2txt
 from PyPDF2 import PdfReader
 import pandas as pd
 import numpy as np
-import io
-import zipfile
 
-from typing import List, Tuple
+from sklearn.metrics.pairwise import cosine_similarity
 from src.prediction.predict import predict_resume_category
+from src.features.build_features import load_sbert_model
 
 # ============================================================================
 # PAGE CONFIG
@@ -25,12 +24,11 @@ st.set_page_config(
 )
 
 # ============================================================================
-# JOB CATEGORIES (24 categories from dataset)
+# JOB CATEGORIES (17 categories - matches trained model)
 # ============================================================================
 JOB_CATEGORIES = [
     "ACCOUNTANT",
     "ADVOCATE",
-    "AGRICULTURE",
     "AVIATION",
     "BUSINESS-DEVELOPMENT",
     "CHEF",
@@ -43,15 +41,17 @@ JOB_CATEGORIES = [
     "HEALTHCARE",
     "HR",
     "INFORMATION-TECHNOLOGY",
+    "PUBLIC-RELATIONS",    # Added - was missing!
     "SALES",
     "TEACHER"
 ]
 
 # ============================================================================
-# CUSTOM CSS
+# CUSTOM CSS WITH DARK/LIGHT MODE SUPPORT
 # ============================================================================
 st.markdown("""
 <style>
+    /* ========== DARK MODE (DEFAULT) ========== */
     .stApp {
         background-color: #000000;
         color: #FFFFFF;
@@ -107,6 +107,94 @@ st.markdown("""
         font-size: 32px;
         font-weight: 800;
     }
+
+    /* ========== LIGHT MODE ========== */
+    @media (prefers-color-scheme: light) {
+        .stApp {
+            background-color: #F5F5F5 !important;
+            color: #000000 !important;
+        }
+
+        h1, h2, h3 {
+            color: #4A5FC1 !important;
+        }
+
+        .rank-card {
+            background: #FFFFFF !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            border: 1px solid #E0E0E0 !important;
+        }
+
+        .rank-gold {
+            background: linear-gradient(135deg, #FFF9E6 0%, #FFFFFF 100%) !important;
+        }
+
+        .rank-silver {
+            background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 100%) !important;
+        }
+
+        .rank-bronze {
+            background: linear-gradient(135deg, #FFF5E6 0%, #FFFFFF 100%) !important;
+        }
+
+        /* Ensure all text is visible in light mode */
+        .stApp p, .stApp span, .stApp div {
+            color: #000000;
+        }
+
+        /* Override Streamlit's default styles for light mode */
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] span,
+        [data-testid="stMarkdownContainer"] div {
+            color: #000000 !important;
+        }
+
+        /* Info/Warning/Success boxes in light mode */
+        .stAlert {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+        }
+
+        /* Form elements in light mode */
+        .stTextInput input,
+        .stTextArea textarea,
+        .stSelectbox select {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 1px solid #CCCCCC !important;
+        }
+
+        /* Buttons in light mode */
+        .stButton>button {
+            background-color: #4A5FC1 !important;
+            color: #FFFFFF !important;
+        }
+
+        .stButton>button:hover {
+            background-color: #3A4FA1 !important;
+        }
+
+        /* Metrics in light mode */
+        [data-testid="stMetricValue"] {
+            color: #000000 !important;
+        }
+
+        /* Tables in light mode */
+        [data-testid="stDataFrame"] {
+            background-color: #FFFFFF !important;
+        }
+
+        /* Expander in light mode */
+        [data-testid="stExpander"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+        }
+
+        /* Progress bars in light mode */
+        .stProgress > div > div {
+            background-color: #4A5FC1 !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -116,89 +204,117 @@ st.markdown("""
 def extract_text_from_file(uploaded_file) -> str:
     """Extract text from PDF, DOCX, or TXT."""
     suffix = uploaded_file.name.lower()
+    filename = uploaded_file.name
 
     try:
         if suffix.endswith(".pdf"):
-            pdf_reader = PdfReader(uploaded_file)
-            text = ""
-            for page in pdf_reader.pages:
-                page_text = page.extract_text() or ""
-                text += page_text + "\n"
+            try:
+                pdf_reader = PdfReader(uploaded_file)
+                text = ""
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text() or ""
+                    text += page_text + "\n"
 
+                # Check if file is empty
+                if not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty or contains no readable text.")
+                    return ""
 
-            return text
+                return text
+            except Exception as pdf_error:
+                st.error(f"❌ **{filename}** - Corrupted or invalid PDF file. Error: {str(pdf_error)}")
+                return ""
 
         elif suffix.endswith(".docx"):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-                tmp.write(uploaded_file.read())
-                tmp_path = tmp.name
-            return docx2txt.process(tmp_path)
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                    tmp.write(uploaded_file.read())
+                    tmp_path = tmp.name
+                text = docx2txt.process(tmp_path)
+
+                # Check if file is empty
+                if not text or not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty or contains no readable text.")
+                    return ""
+
+                return text
+            except Exception as docx_error:
+                st.error(f"❌ **{filename}** - Corrupted or invalid DOCX file. Error: {str(docx_error)}")
+                return ""
 
         elif suffix.endswith(".txt"):
-            return uploaded_file.read().decode("utf-8")
+            try:
+                text = uploaded_file.read().decode("utf-8")
+
+                # Check if file is empty
+                if not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty.")
+                    return ""
+
+                return text
+            except UnicodeDecodeError:
+                st.error(f"❌ **{filename}** - Unable to decode text file. File may be corrupted or in an unsupported encoding.")
+                return ""
+            except Exception as txt_error:
+                st.error(f"❌ **{filename}** - Error reading text file. Error: {str(txt_error)}")
+                return ""
 
         else:
+            st.error(f"❌ **{filename}** - Unsupported file format.")
             return ""
+
     except Exception as e:
-        st.error(f"Error extracting text: {str(e)}")
+        st.error(f"❌ **{filename}** - Unexpected error occurred. Error: {str(e)}")
         return ""
 
 
-def extract_resumes_from_zip(uploaded_zip) -> List[Tuple[str, str]]:
 
+
+
+def calculate_match_score(
+    predicted_category: str,
+    target_category: str,
+    confidence: float,
+    keyword_ratio: float = 0.0,
+    sbert_similarity: float = 0.0
+) -> dict:
     """
-    Extract multiple resumes from a ZIP file.
+    Calculate hybrid matching score with breakdown.
 
-    Returns a list of (filename, extracted_text)
-    Only processes .pdf, .docx, .txt inside the zip.
-    """
-    resumes = []
-
-    try:
-        with zipfile.ZipFile(uploaded_zip) as zf:
-            for name in zf.namelist():
-                # Skip folders
-                if name.endswith("/"):
-                    continue
-
-                lower = name.lower()
-                if not lower.endswith((".pdf", ".docx", ".txt")):
-                    # Skip non-resume files
-                    continue
-
-                with zf.open(name) as f:
-                    data = f.read()
-
-                # Create a file-like object that looks like an uploaded file
-                fake_file = io.BytesIO(data)
-                fake_file.name = name  # So extract_text_from_file can read suffix
-                fake_file.seek(0)  
-
-                text = extract_text_from_file(fake_file)
-                if text.strip():
-                    resumes.append((name, text))
-
-    except Exception as e:
-        st.error(f"Error reading ZIP file: {str(e)}")
-
-    return resumes
-
-
-
-def calculate_match_score(predicted_category: str, target_category: str, confidence: float) -> float:
-    """
-    Calculate matching score between predicted and target category.
+    Scoring weights:
+    - Category match: 30%
+    - Keyword matches: 30%
+    - SBERT similarity: 30%
+    - Model confidence: 10%
 
     Returns:
-        Score between 0-100
+        Dict with total score and breakdown
     """
-    # Exact match
+    # Component 1: Category Match (30%)
     if predicted_category == target_category:
-        return confidence * 100
+        category_score = 30.0  # Perfect match
+    else:
+        category_score = 0.0  # Mismatch
 
-    # Partial match (if related categories exist, can add logic here)
-    # For now, return low score for mismatch
-    return confidence * 30
+    # Component 2: Keyword Match (30%)
+    keyword_score = keyword_ratio * 30.0
+
+    # Component 3: SBERT Similarity (30%)
+    similarity_score = sbert_similarity * 30.0
+
+    # Component 4: Model Confidence (10%)
+    confidence_score = confidence * 10.0
+
+    # Total score
+    total_score = category_score + keyword_score + similarity_score + confidence_score
+
+    return {
+        'total': total_score,
+        'category': category_score,
+        'keywords': keyword_score,
+        'similarity': similarity_score,
+        'confidence': confidence_score
+    }
 
 
 def get_score_class(score: float) -> str:
@@ -221,6 +337,65 @@ def get_rank_class(rank: int) -> str:
         return "rank-bronze"
     else:
         return "rank-normal"
+
+
+def find_matched_keywords(resume_text: str, keywords: list) -> list:
+    """
+    Find which keywords from the job requirements appear in the resume text.
+
+    Args:
+        resume_text: The candidate's resume text
+        keywords: List of lowercase keywords to search for
+
+    Returns:
+        List of matched keywords (lowercase)
+    """
+    if not keywords:
+        return []
+
+    resume_lower = resume_text.lower()
+    matched = []
+
+    for keyword in keywords:
+        # Check if keyword appears as a whole word or phrase
+        if keyword in resume_lower:
+            matched.append(keyword)
+
+    return matched
+
+
+# Cache SBERT model at module level
+@st.cache_resource
+def get_sbert_model():
+    """Load and cache SBERT model."""
+    return load_sbert_model()
+
+
+def calculate_sbert_similarity(text1: str, text2: str) -> float:
+    """
+    Calculate cosine similarity between two texts using SBERT embeddings.
+
+    Args:
+        text1: First text (e.g., job description)
+        text2: Second text (e.g., resume)
+
+    Returns:
+        Similarity score between 0 and 1
+    """
+    try:
+        model = get_sbert_model()
+
+        # Generate embeddings
+        embedding1 = model.encode([text1])
+        embedding2 = model.encode([text2])
+
+        # Calculate cosine similarity
+        similarity = cosine_similarity(embedding1, embedding2)[0][0]
+
+        return float(similarity)
+    except Exception as e:
+        st.warning(f"Error calculating similarity: {str(e)}")
+        return 0.0
 
 
 # ============================================================================
@@ -282,6 +457,14 @@ with st.form("job_form"):
         )
     )
 
+    # ---- KEYWORDS ----
+    st.markdown("### 🔑 Required Keywords (Optional)")
+    keywords_input = st.text_input(
+        "Enter comma-separated keywords to match",
+        placeholder="e.g., python, machine learning, AWS, SQL, leadership",
+        help="Keywords will be matched against candidate resumes to show relevance"
+    )
+
     # ---- SUBMIT BUTTON ----
     submitted = st.form_submit_button(
         "💾 Save Job Requirements",
@@ -301,16 +484,26 @@ with st.form("job_form"):
         elif not job_description.strip():
             st.error("⚠️ Please enter a job description.")
         else:
+            # Parse keywords
+            keywords = []
+            if keywords_input.strip():
+                keywords = [kw.strip().lower() for kw in keywords_input.split(',') if kw.strip()]
+
             st.session_state['job_requirements'] = {
                 'category': final_category,
-                'description': job_description
+                'description': job_description,
+                'keywords': keywords
             }
-            st.success(f"✅ Job requirements saved! Target category: **{final_category}**")
+
+            keyword_msg = f" with {len(keywords)} keyword(s)" if keywords else ""
+            st.success(f"✅ Job requirements saved! Target category: **{final_category}**{keyword_msg}")
 
 # Show saved requirements
 if 'job_requirements' in st.session_state:
     req = st.session_state['job_requirements']
-    st.info(f"**Target Category:** {req['category']}")
+    keywords = req.get('keywords', [])
+    keyword_display = f", **Keywords:** {', '.join(keywords)}" if keywords else ""
+    st.info(f"**Target Category:** {req['category']}{keyword_display}")
 
 st.markdown("---")
 
@@ -318,30 +511,26 @@ st.markdown("---")
 st.markdown("### 📤 Step 2: Upload Candidate Resumes")
 
 uploaded_files = st.file_uploader(
-    "Upload candidate resumes (PDF, DOCX, TXT) or a ZIP containing many resumes",
-    type=["pdf", "docx", "txt", "zip"],
+    "Upload candidate resumes (PDF, DOCX, TXT)",
+    type=["pdf", "docx", "txt"],
     accept_multiple_files=True,
-    help="You can drag & drop multiple files, including a ZIP with many resumes."
+    help="You can drag & drop multiple files at once. Supported formats: PDF, DOCX, TXT"
 )
 
 MAX_RESUMES = 500  # hard limit on how many resumes we process in total
 
 all_resume_items = []  # list of dicts: {"filename": ..., "text": ...}
+skipped_files_upload = []  # Track corrupted/empty files during upload
 
 if uploaded_files:
     for uf in uploaded_files:
-        name = uf.name.lower()
-
-        # If it's a ZIP file, expand it
-        if name.endswith(".zip"):
-            extracted = extract_resumes_from_zip(uf)
-            for fname, text in extracted:
-                all_resume_items.append({"filename": fname, "text": text})
+        # Process individual resume files
+        text = extract_text_from_file(uf)
+        if text.strip():
+            all_resume_items.append({"filename": uf.name, "text": text})
         else:
-            # Normal single resume file
-            text = extract_text_from_file(uf)
-            if text.strip():
-                all_resume_items.append({"filename": uf.name, "text": text})
+            # File is corrupted or empty
+            skipped_files_upload.append(uf.name)
 
     total_resumes = len(all_resume_items)
 
@@ -356,6 +545,10 @@ if uploaded_files:
             )
             all_resume_items = all_resume_items[:MAX_RESUMES]
             total_resumes = MAX_RESUMES
+
+        # Show summary with skipped files info
+        if skipped_files_upload:
+            st.warning(f"⚠️ **{len(skipped_files_upload)} file(s) skipped** due to corruption or empty content: {', '.join(skipped_files_upload)}")
 
         st.success(f"✅ {total_resumes} resume(s) ready for analysis (limit: {MAX_RESUMES}).")
 
@@ -372,6 +565,7 @@ if all_resume_items and 'job_requirements' in st.session_state:
     if st.button("🚀 Rank Candidates", type="primary", use_container_width=True):
         req = st.session_state['job_requirements']
         candidates = []
+        skipped_files_ranking = []  # Track files that failed during ranking
 
         total = len(all_resume_items)
         progress_bar = st.progress(0)
@@ -387,29 +581,52 @@ if all_resume_items and 'job_requirements' in st.session_state:
                 try:
                     result = predict_resume_category(resume_text)
 
-                    # ✅ Correct call: predicted, target, confidence
-                    match_score = calculate_match_score(
+                    # Find matched keywords
+                    keywords = req.get('keywords', [])
+                    matched_keywords = find_matched_keywords(resume_text, keywords)
+                    keyword_ratio = len(matched_keywords) / len(keywords) if keywords else 0.0
+
+                    # Calculate SBERT similarity
+                    job_description = req['description']
+                    sbert_similarity = calculate_sbert_similarity(job_description, resume_text)
+
+                    # Calculate hybrid match score
+                    score_breakdown = calculate_match_score(
                         predicted_category=result['predicted_category'].upper(),
                         target_category=req['category'].upper(),
-                        confidence=result['confidence_score']
+                        confidence=result['confidence_score'],
+                        keyword_ratio=keyword_ratio,
+                        sbert_similarity=sbert_similarity
                     )
 
                     candidates.append({
                         "filename": filename,
                         "predicted_category": result['predicted_category'],
                         "confidence": result['confidence_score'],
-                        "match_score": match_score,
+                        "match_score": score_breakdown['total'],
+                        "score_breakdown": score_breakdown,
                         "result": result,
+                        "matched_keywords": matched_keywords,
+                        "total_keywords": len(keywords),
+                        "sbert_similarity": sbert_similarity,
                     })
                 except Exception as e:
-                    st.error(f"Error processing {filename}: {str(e)}")
+                    st.error(f"❌ Error processing {filename}: {str(e)}")
+                    skipped_files_ranking.append(filename)
             else:
-                st.warning(f"⚠️ Could not extract text from {filename}")
+                skipped_files_ranking.append(filename)
 
             progress_bar.progress((idx + 1) / total)
 
         progress_bar.empty()
         status_text.empty()
+
+        # Show summary of processing
+        if skipped_files_ranking:
+            st.warning(f"⚠️ **{len(skipped_files_ranking)} file(s) skipped** during analysis due to errors: {', '.join(skipped_files_ranking)}")
+
+        if candidates:
+            st.success(f"✅ **{len(candidates)} candidate(s) successfully ranked** out of {total} resumes.")
 
         # Sort candidates by score and save to session_state
         candidates = sorted(candidates, key=lambda x: x['match_score'], reverse=True)
@@ -467,7 +684,7 @@ if candidates and 'job_requirements' in st.session_state:
     def color_rows(row):
         score = float(row['Match Score'].replace('%', ''))
         if row['Category Match'] == 'Yes' or score >= 70:
-            return ['background-color: #BDECB4'] * len(row)  # pastel green
+            return ['background-color: #0A9548'] * len(row)  # vibrant green
         elif score >= 50:
             return ['background-color: #FFFACD'] * len(row)  # pale yellow
         else:
@@ -523,6 +740,45 @@ if candidates and 'job_requirements' in st.session_state:
                 st.markdown(f"{candidate['confidence']*100:.1f}%")
 
             with st.expander("📊 View Full Analysis"):
+                # Show score breakdown
+                if 'score_breakdown' in candidate:
+                    breakdown = candidate['score_breakdown']
+                    st.markdown("**📈 Score Breakdown (Hybrid Scoring):**")
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.metric("Category Match (30%)", f"{breakdown['category']:.1f}")
+                        st.metric("Keywords (30%)", f"{breakdown['keywords']:.1f}")
+
+                    with col2:
+                        st.metric("Content Similarity (30%)", f"{breakdown['similarity']:.1f}")
+                        st.metric("Model Confidence (10%)", f"{breakdown['confidence']:.1f}")
+
+                    st.markdown(f"**Total Score: {breakdown['total']:.1f}/100**")
+                    st.markdown("---")
+
+                # Show matched keywords if any were specified
+                if candidate.get('total_keywords', 0) > 0:
+                    matched = candidate.get('matched_keywords', [])
+                    total = candidate['total_keywords']
+                    match_count = len(matched)
+
+                    st.markdown("**🔑 Keyword Matches:**")
+                    if matched:
+                        keyword_tags = " ".join([f"`{kw}`" for kw in matched])
+                        st.markdown(f"✅ **{match_count}/{total}** keywords found: {keyword_tags}")
+                    else:
+                        st.markdown(f"❌ **0/{total}** keywords found")
+
+                    st.markdown("---")
+
+                # Show SBERT similarity
+                if 'sbert_similarity' in candidate:
+                    sim_percent = candidate['sbert_similarity'] * 100
+                    st.markdown(f"**🔍 Content Similarity:** {sim_percent:.1f}% (resume vs. job description)")
+                    st.markdown("---")
+
                 st.markdown("**Top Predicted Categories:**")
                 top_probs = sorted(
                     candidate['result']['probabilities'].items(),
@@ -539,6 +795,12 @@ if candidates and 'job_requirements' in st.session_state:
 
     export_data = []
     for rank, candidate in enumerate(candidates, 1):
+        # Prepare keyword info for export
+        keyword_info = ""
+        if candidate.get('total_keywords', 0) > 0:
+            matched = candidate.get('matched_keywords', [])
+            keyword_info = f"{len(matched)}/{candidate['total_keywords']} ({', '.join(matched) if matched else 'none'})"
+
         export_data.append({
             "Rank": rank,
             "Filename": candidate['filename'],
@@ -546,6 +808,7 @@ if candidates and 'job_requirements' in st.session_state:
             "Predicted Category": candidate['predicted_category'],
             "Confidence": f"{candidate['confidence']*100:.1f}%",
             "Category Match": "Yes" if candidate['predicted_category'].upper() == req['category'].upper() else "No",
+            "Keywords Matched": keyword_info if keyword_info else "N/A",
         })
 
     df = pd.DataFrame(export_data)

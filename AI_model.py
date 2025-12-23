@@ -1083,13 +1083,13 @@ def main() -> None:
     print(f"\nTotal samples removed: {len(resume_df[resume_df['Category'].isin(removed)])}")
 
     categories_to_drop = [
-        "APPAREL",
-        "ARTS",
-        "AUTOMOBILE",
-        "BPO",
-        "DIGITAL-MEDIA",
-        "BANKING",
-        "PUBLIC-RELATIONS"
+        "BPO",                  # 22 samples
+        "AUTOMOBILE",           # 36 samples
+        "AGRICULTURE",          # 63 samples
+        "DIGITAL-MEDIA",        # 96 samples
+        "APPAREL",              # 97 samples
+        "ARTS",                 # 103 samples
+        "BANKING"               # 115 samples
     ]
 
     print("\nBefore dropping categories:")
@@ -1274,7 +1274,7 @@ def train_improved_model() -> None:
     # ===============================
     # 🔥 DROP SELECTED CATEGORIES HERE
     # ===============================
-    categories_to_drop = ["APPAREL", "ARTS", "AUTOMOBILE", "BPO", "DIGITAL-MEDIA", "BANKING", "PUBLIC-RELATIONS"]
+    categories_to_drop = ["BPO", "AUTOMOBILE", "AGRICULTURE", "DIGITAL-MEDIA", "APPAREL", "ARTS", "BANKING"]
 
     print("\nBefore dropping categories:")
     print(resume_df['Category'].value_counts())

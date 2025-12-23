@@ -27,9 +27,10 @@ BG_COLOR = "#000000"      # Black background
 
 st.markdown(f"""
 <style>
+    /* ========== DARK MODE (DEFAULT) ========== */
     /* Overall Page Style */
     .stApp {{
-        background-color: {BG_COLOR}; 
+        background-color: {BG_COLOR};
         color: {TEXT_COLOR};
     }}
 
@@ -37,7 +38,7 @@ st.markdown(f"""
     .main-title {{
         font-size: 42px !important;
         font-weight: 700;
-        color: {ACCENT_COLOR}; 
+        color: {ACCENT_COLOR};
         text-align: center;
         margin-bottom: 5px;
         padding-top: 10px;
@@ -93,7 +94,7 @@ st.markdown(f"""
 
     /* Streamlit Button Styling (Consistency) */
     .stButton>button {{
-        background-color: {ACCENT_COLOR};
+        background-color: #4A5FC1;
         color: white;
         border: none;
         border-radius: 8px;
@@ -105,24 +106,102 @@ st.markdown(f"""
     }}
 
     .stButton>button:hover {{
-        background-color: #5A3F7A; 
+        background-color: #3A4FA1;
     }}
 
     /* Info/How-It-Works Boxes (Keep light pastel for informative blocks) */
     div[data-testid="stMarkdownContainer"]>div.info {{
-        background-color: {PASTEL_BLUE}1A; 
+        background-color: {PASTEL_BLUE}1A;
         border-left: 5px solid {PASTEL_BLUE};
         color: {TEXT_COLOR};
         padding: 15px;
         border-radius: 5px;
         margin-bottom: 15px;
     }}
-    
+
     /* Center headings */
     h3 {{
         text-align: center;
         color: {ACCENT_COLOR};
         margin-top: 40px;
+    }}
+
+    /* ========== LIGHT MODE ========== */
+    @media (prefers-color-scheme: light) {{
+        .stApp {{
+            background-color: #F5F5F5 !important;
+            color: #000000 !important;
+        }}
+
+        .main-title {{
+            color: #4A5FC1 !important;
+        }}
+
+        .subtitle {{
+            color: #666666 !important;
+        }}
+
+        .action-card {{
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+            color: #000000 !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+        }}
+
+        .action-card:hover {{
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+            border: 1px solid #4A5FC1 !important;
+        }}
+
+        .action-icon {{
+            color: #4A5FC1 !important;
+        }}
+
+        .action-title {{
+            color: #000000 !important;
+        }}
+
+        .action-desc {{
+            color: #666666 !important;
+        }}
+
+        h3 {{
+            color: #4A5FC1 !important;
+        }}
+
+        /* Ensure all text is visible in light mode */
+        .stApp p, .stApp span, .stApp div {{
+            color: #000000;
+        }}
+
+        /* Override Streamlit's default styles for light mode */
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] span,
+        [data-testid="stMarkdownContainer"] div {{
+            color: #000000 !important;
+        }}
+
+        /* Buttons in light mode */
+        .stButton>button {{
+            background-color: #4A5FC1 !important;
+            color: #FFFFFF !important;
+        }}
+
+        .stButton>button:hover {{
+            background-color: #3A4FA1 !important;
+        }}
+
+        /* Info boxes in light mode */
+        .stAlert {{
+            background-color: #E8F4FD !important;
+            border: 1px solid #4A5FC1 !important;
+            color: #000000 !important;
+        }}
+
+        /* Captions in light mode */
+        .stCaption {{
+            color: #666666 !important;
+        }}
     }}
 
 </style>
@@ -143,36 +222,34 @@ st.markdown("### Choose Your Next Step")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown(f"""
+    st.markdown("""
     <div class="action-card">
         <div class="action-icon">📂</div>
         <div class="action-title">Screen Resumes</div>
         <div class="action-desc">
             Upload a batch of resumes and get instant AI categorization for easy sorting.
         </div>
-        {st.button("📂 Start Screening", key="btn1", use_container_width=True)}
     </div>
     """, unsafe_allow_html=True)
 
-    # Check if the button was clicked inside the markdown context for page switch
-    if st.session_state.get('btn1'):
-         st.switch_page("pages/1_📤_Resume_Upload.py")
+    # Button placed outside the HTML markdown
+    if st.button("📂 Start Screening", key="btn1", use_container_width=True):
+        st.switch_page("pages/1_📤_Resume_Upload.py")
 
 
 with col2:
-    st.markdown(f"""
+    st.markdown("""
     <div class="action-card">
         <div class="action-icon">⭐</div>
         <div class="action-title">Find Best Match</div>
         <div class="action-desc">
             Define job requirements and rank candidates based on an AI-powered matching score.
         </div>
-        {st.button("⭐ Find Matches", key="btn2", use_container_width=True)}
     </div>
     """, unsafe_allow_html=True)
 
-    # Check if the button was clicked inside the markdown context for page switch
-    if st.session_state.get('btn2'):
+    # Button placed outside the HTML markdown
+    if st.button("⭐ Find Matches", key="btn2", use_container_width=True):
         st.switch_page("pages/2_🎯_Job_Matching.py")
 
 # HCI Principle: Visibility and Feedback

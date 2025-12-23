@@ -1,0 +1,129 @@
+@startuml AI_Resume_Screening_Use_Case
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+title Use Case Diagram - AI Resume Screening System
+
+' Actors
+actor "Job Seeker" as JobSeeker #lightblue
+actor "HR / Recruiter" as HR #lightgreen
+actor "System" as System #gray
+
+' Package for Resume Screening Module
+package "Resume Screening Module" {
+    usecase "Upload Resume(s)" as UC1
+    usecase "Extract Text from Files" as UC2
+    usecase "Validate File Format" as UC3
+    usecase "Detect Corrupted/Empty Files" as UC4
+    usecase "Clean and Preprocess Text" as UC5
+    usecase "Extract Features" as UC6
+    usecase "Predict Resume Category" as UC7
+    usecase "View AI Prediction Results" as UC8
+    usecase "View Confidence Scores" as UC9
+    usecase "View Top Categories" as UC10
+    usecase "Export Predictions (CSV)" as UC11
+}
+
+' Package for Job Matching Module
+package "Job Matching & Ranking Module" {
+    usecase "Define Job Requirements" as UC12
+    usecase "Select Target Category" as UC13
+    usecase "Enter Job Description" as UC14
+    usecase "Specify Required Keywords" as UC15
+    usecase "Upload Candidate Resumes" as UC16
+    usecase "Calculate Hybrid Match Score" as UC17
+    usecase "Rank Candidates" as UC18
+    usecase "View Candidate Rankings" as UC19
+    usecase "View Match Score Breakdown" as UC20
+    usecase "View Keyword Matches" as UC21
+    usecase "View Content Similarity" as UC22
+    usecase "Export Rankings (CSV)" as UC23
+}
+
+' Package for System Core Functions
+package "System Core Functions" {
+    usecase "Load AI Models" as UC24
+    usecase "Apply Label Encoding" as UC25
+    usecase "Calculate SBERT Similarity" as UC26
+    usecase "Generate TF-IDF Features" as UC27
+    usecase "Extract Custom Features" as UC28
+    usecase "Handle Errors & Notifications" as UC29
+}
+
+' Job Seeker relationships
+JobSeeker --> UC1 : uploads
+JobSeeker --> UC8 : views
+JobSeeker --> UC9 : checks
+JobSeeker --> UC10 : reviews
+JobSeeker --> UC11 : downloads
+
+' HR relationships
+HR --> UC12 : defines
+HR --> UC13 : selects
+HR --> UC14 : enters
+HR --> UC15 : specifies (optional)
+HR --> UC16 : uploads
+HR --> UC19 : views
+HR --> UC20 : analyzes
+HR --> UC21 : reviews
+HR --> UC22 : checks
+HR --> UC23 : downloads
+
+' Include relationships - Resume Screening
+UC1 ..> UC2 : <<include>>
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC4 : <<include>>
+UC2 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC6 ..> UC7 : <<include>>
+UC7 ..> UC8 : <<include>>
+
+' Include relationships - Job Matching
+UC12 ..> UC13 : <<include>>
+UC12 ..> UC14 : <<include>>
+UC12 ..> UC15 : <<extend>>
+UC16 ..> UC2 : <<include>>
+UC16 ..> UC3 : <<include>>
+UC16 ..> UC4 : <<include>>
+UC7 ..> UC17 : <<include>>
+UC17 ..> UC18 : <<include>>
+UC18 ..> UC19 : <<include>>
+
+' System core function relationships
+UC6 ..> UC24 : <<include>>
+UC6 ..> UC27 : <<include>>
+UC6 ..> UC28 : <<include>>
+UC7 ..> UC25 : <<include>>
+UC17 ..> UC26 : <<include>>
+UC3 ..> UC29 : <<include>>
+UC4 ..> UC29 : <<include>>
+
+' System actor relationships
+System --> UC24 : manages
+System --> UC29 : handles
+
+note right of UC17
+  Hybrid Scoring Components:
+  - Category Match (30%)
+  - Keyword Match (30%)
+  - SBERT Similarity (30%)
+  - Model Confidence (10%)
+end note
+
+note right of UC6
+  Features Extracted:
+  - SBERT Embeddings (768 dim)
+  - TF-IDF Features (5000)
+  - Custom Features (7)
+  Total: 5775 features
+end note
+
+note left of UC7
+  AI Model:
+  - XGBoost Classifier
+  - 17 Job Categories
+  - 91.03% Accuracy
+end note
+
+@enduml

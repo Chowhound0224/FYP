@@ -73,7 +73,8 @@ The core innovation is **three-feature fusion**:
 ### Training (src/models/)
 
 **`lightgbm_trainer.py::train_with_optuna()`**
-- Tests 3 model types: XGBoost, LogisticRegression, RandomForest
+- Uses **XGBoost only** with Optuna hyperparameter optimization
+- Optimizes 9 hyperparameters: n_estimators, max_depth, learning_rate, subsample, colsample_bytree, min_child_weight, gamma, reg_alpha, reg_lambda
 - Uses TPE sampler with configurable trials (default: 10)
 - **Sequential CV** (`n_jobs=1`) avoids parallel overhead with large features
 - Returns: (best_model, best_params, best_score)
@@ -177,11 +178,13 @@ app.py:
 4. Update `TOTAL_FEATURES` calculation
 5. Re-train model: `python train_improved.py`
 
-### Changing Model Types
+### Tuning XGBoost Hyperparameters
 1. Edit `src/models/lightgbm_trainer.py::objective()`
-2. Add new model type to `trial.suggest_categorical()`
-3. Add hyperparameter suggestions for new model
+2. Adjust hyperparameter ranges (e.g., increase max_depth range, adjust learning_rate bounds)
+3. Add new XGBoost parameters if needed (e.g., scale_pos_weight for imbalanced classes)
 4. Re-train: `python train_improved.py`
+
+Note: The system now uses XGBoost exclusively. To test other models (RandomForest, LightGBM, LogisticRegression), you would need to modify the trainer to include model selection.
 
 ### Adjusting Training Speed
 - `src/config.py::OPTUNA_N_TRIALS` - reduce from 10 to 5 for faster training

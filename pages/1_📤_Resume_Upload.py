@@ -35,9 +35,10 @@ BG_COLOR = "#000000"      # Black background
 
 st.markdown(f"""
 <style>
+    /* ========== DARK MODE (DEFAULT) ========== */
     /* Overall Page Style */
     .stApp {{
-        background-color: {BG_COLOR}; 
+        background-color: {BG_COLOR};
         color: {TEXT_COLOR};
     }}
 
@@ -48,7 +49,7 @@ st.markdown(f"""
         font-weight: 700;
         margin-bottom: 5px;
     }}
-    
+
     h3 {{
         color: {ACCENT_COLOR};
     }}
@@ -115,7 +116,7 @@ st.markdown(f"""
         color: #dc3545; /* Red */
         font-weight: 600;
     }}
-    
+
     /* Streamlit Button Styling (Consistency) */
     .stButton>button {{
         background-color: {ACCENT_COLOR};
@@ -158,6 +159,117 @@ st.markdown(f"""
         font-weight: 600 !important;
         font-size: 16px !important;
     }}
+
+    /* ========== LIGHT MODE ========== */
+    @media (prefers-color-scheme: light) {{
+        .stApp {{
+            background-color: #F5F5F5 !important;
+            color: #000000 !important;
+        }}
+
+        h1, h2, h3 {{
+            color: #4A5FC1 !important;
+        }}
+
+        .upload-section {{
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            border: 1px solid #E0E0E0 !important;
+        }}
+
+        .upload-section h2 {{
+            color: #000000 !important;
+        }}
+
+        .result-card {{
+            background: #FFFFFF !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            border: 1px solid #E0E0E0 !important;
+            border-left: 5px solid #4A5FC1 !important;
+        }}
+
+        .result-card:hover {{
+            border-left-color: #FF69B4 !important;
+        }}
+
+        .category-badge {{
+            background: #4A5FC1 !important;
+            color: #FFFFFF !important;
+        }}
+
+        /* Ensure all text is visible in light mode */
+        .stApp p, .stApp span, .stApp div {{
+            color: #000000;
+        }}
+
+        /* Override Streamlit's default styles for light mode */
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] span,
+        [data-testid="stMarkdownContainer"] div {{
+            color: #000000 !important;
+        }}
+
+        /* File uploader in light mode */
+        [data-testid="stFileUploader"] {{
+            background: #FFFFFF !important;
+            border: 2px dashed #4A5FC1 !important;
+        }}
+
+        [data-testid="stFileUploader"]:hover {{
+            border-color: #FF69B4 !important;
+            background: #F9F9F9 !important;
+        }}
+
+        [data-testid="stFileUploader"] label {{
+            color: #4A5FC1 !important;
+        }}
+
+        /* Buttons in light mode */
+        .stButton>button {{
+            background-color: #4A5FC1 !important;
+            color: #FFFFFF !important;
+        }}
+
+        .stButton>button:hover {{
+            background-color: #3A4FA1 !important;
+        }}
+
+        /* Info/Warning/Success boxes in light mode */
+        .stAlert {{
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+        }}
+
+        /* Form elements in light mode */
+        .stTextInput input,
+        .stTextArea textarea,
+        .stSelectbox select {{
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 1px solid #CCCCCC !important;
+        }}
+
+        /* Metrics in light mode */
+        [data-testid="stMetricValue"] {{
+            color: #000000 !important;
+        }}
+
+        /* Tables in light mode */
+        [data-testid="stDataFrame"] {{
+            background-color: #FFFFFF !important;
+        }}
+
+        /* Expander in light mode */
+        [data-testid="stExpander"] {{
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+        }}
+
+        /* Progress bars in light mode */
+        .stProgress > div > div {{
+            background-color: #4A5FC1 !important;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -168,30 +280,70 @@ st.markdown(f"""
 def extract_text_from_file(uploaded_file) -> str:
     """Extract text from PDF, DOCX, or TXT."""
     suffix = uploaded_file.name.lower()
+    filename = uploaded_file.name
 
     try:
         if suffix.endswith(".pdf"):
-            pdf_reader = PdfReader(uploaded_file)
-            text = ""
-            for page in pdf_reader.pages:
-                page_text = page.extract_text() or "" # Handle blank pages gracefully
-                text += page_text + "\n"
-            return text
+            try:
+                pdf_reader = PdfReader(uploaded_file)
+                text = ""
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text() or ""
+                    text += page_text + "\n"
+
+                # Check if file is empty
+                if not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty or contains no readable text.")
+                    return ""
+
+                return text
+            except Exception as pdf_error:
+                st.error(f"❌ **{filename}** - Corrupted or invalid PDF file. Error: {str(pdf_error)}")
+                return ""
 
         elif suffix.endswith(".docx"):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-                tmp.write(uploaded_file.read())
-                tmp_path = tmp.name
-            return docx2txt.process(tmp_path)
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                    tmp.write(uploaded_file.read())
+                    tmp_path = tmp.name
+                text = docx2txt.process(tmp_path)
+
+                # Check if file is empty
+                if not text or not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty or contains no readable text.")
+                    return ""
+
+                return text
+            except Exception as docx_error:
+                st.error(f"❌ **{filename}** - Corrupted or invalid DOCX file. Error: {str(docx_error)}")
+                return ""
 
         elif suffix.endswith(".txt"):
-            return uploaded_file.read().decode("utf-8")
+            try:
+                text = uploaded_file.read().decode("utf-8")
+
+                # Check if file is empty
+                if not text.strip():
+                    st.warning(f"⚠️ **{filename}** appears to be empty.")
+                    return ""
+
+                return text
+            except UnicodeDecodeError:
+                st.error(f"❌ **{filename}** - Unable to decode text file. File may be corrupted or in an unsupported encoding.")
+                return ""
+            except Exception as txt_error:
+                st.error(f"❌ **{filename}** - Error reading text file. Error: {str(txt_error)}")
+                return ""
 
         else:
+            st.error(f"❌ **{filename}** - Unsupported file format.")
             return ""
+
     except Exception as e:
-        st.error(f"Error extracting text from **{uploaded_file.name}**: {str(e)}")
+        st.error(f"❌ **{filename}** - Unexpected error occurred. Error: {str(e)}")
         return ""
+
+
 
 
 def get_confidence_class(confidence: float) -> str:
@@ -261,20 +413,20 @@ def display_prediction_card(filename: str, result: dict, index: int):
             with col2:
                 st.markdown("**Text Extraction Preview:**")
                 preview = result['cleaned_text'][:700] + "..." if len(result['cleaned_text']) > 700 else result['cleaned_text']
-                st.text_area("Extracted Content", preview, height=200, disabled=True, label_visibility="collapsed")
+                st.text_area("Extracted Content", preview, height=200, disabled=True, label_visibility="collapsed", key=f"preview_{index}")
                 
 # ============================================================================
 # MAIN UI
 # ============================================================================
 
-st.markdown(f'<h1 style="color: {ACCENT_COLOR};">📄 Resume Screening</h1>', unsafe_allow_html=True)
+st.markdown('<h1 style="color: #667eea;">📄 Resume Screening</h1>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="upload-section">
     <h2 style="margin: 0;">Upload Resumes for Instant Categorization</h2>
     <p style="margin-top: 10px; opacity: 0.9;">
         <strong>Drag & drop multiple files at once</strong> (PDF, DOCX, or TXT) or click browse to select files.<br>
-        <em style="font-size: 14px; color: #A2D2FF;">💡 Tip: Select multiple files by holding Ctrl (Windows) or Cmd (Mac) when browsing, or drag them all together!</em>
+        <em style="font-size: 14px; color: #CCCCCC;">💡 Tip: Select multiple files by holding Ctrl (Windows) or Cmd (Mac) when browsing, or drag them all together!</em>
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -293,6 +445,7 @@ if uploaded_files:
     # Process button
     if st.button("🚀 Analyze Resumes", type="primary", use_container_width=True):
         results = []
+        skipped_files = []  # Track corrupted/empty files
 
         # Progress bar
         progress_bar = st.progress(0)
@@ -313,15 +466,21 @@ if uploaded_files:
                         "result": result
                     })
                 except Exception as e:
-                    st.error(f"Error predicting {uploaded_file.name}: The prediction model failed. ({str(e)})")
+                    st.error(f"❌ Error predicting {uploaded_file.name}: The prediction model failed. ({str(e)})")
+                    skipped_files.append(uploaded_file.name)
             else:
-                # Error is already logged in extract_text_from_file for extraction failure
-                pass
+                # File is corrupted or empty - already logged in extract_text_from_file
+                skipped_files.append(uploaded_file.name)
 
             progress_bar.progress((idx + 1) / len(uploaded_files))
 
         status_text.empty()
         progress_bar.empty()
+
+        # Show summary of skipped files
+        if skipped_files:
+            st.warning(f"⚠️ **{len(skipped_files)} file(s) skipped** due to corruption, empty content, or errors: {', '.join(skipped_files)}")
+            st.info(f"📊 **{len(results)} file(s) successfully analyzed** out of {len(uploaded_files)} uploaded.")
 
         # Display results
         if results:

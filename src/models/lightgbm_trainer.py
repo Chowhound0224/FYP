@@ -4,6 +4,7 @@ import numpy as np
 import optuna
 from optuna.samplers import TPESampler
 from sklearn.model_selection import cross_val_score
+from sklearn.utils.class_weight import compute_sample_weight
 from typing import Tuple
 import xgboost as xgb
 
@@ -31,6 +32,10 @@ def train_with_optuna(
 
     print("\nStarting Optuna hyperparameter optimization for XGBoost...")
     print(f"Trying {OPTUNA_N_TRIALS} configurations...")
+
+    # Compute sample weights to handle class imbalance
+    sample_weights = compute_sample_weight('balanced', y=y_train)
+    print(f"[OK] Computed sample weights for {len(np.unique(y_train))} classes")
 
     def objective(trial):
         # XGBoost hyperparameter search space
@@ -84,7 +89,7 @@ def train_with_optuna(
         eval_metric='logloss'
     )
 
-    best_model.fit(X_train, y_train)
+    best_model.fit(X_train, y_train, sample_weight=sample_weights)
 
     return best_model, best_params, study.best_value
 

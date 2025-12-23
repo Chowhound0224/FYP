@@ -4,6 +4,7 @@ with Optuna optimization.
 """
 
 import joblib
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 from sklearn.model_selection import train_test_split
@@ -48,6 +49,27 @@ def main():
     resume_df = resume_df[resume_df["cleaned_text"].str.strip() != ""]
     resume_df = resume_df.drop_duplicates(subset=["cleaned_text"])
     print(f"[OK] Cleaned rows remaining: {len(resume_df)}")
+
+    # ----------------------------------------------------------------------
+    # 2b. Filter out low-sample categories
+    # ----------------------------------------------------------------------
+    EXCLUDED_CATEGORIES = [
+        'BPO',                  # 22 samples
+        'AUTOMOBILE',           # 36 samples
+        'AGRICULTURE',          # 63 samples
+        'DIGITAL-MEDIA',        # 96 samples
+        'APPAREL',              # 97 samples
+        'ARTS',                 # 103 samples (user requested)
+        'BANKING'               # 115 samples (user requested)
+    ]
+
+    initial_count = len(resume_df)
+    resume_df = resume_df[~resume_df["Category"].isin(EXCLUDED_CATEGORIES)]
+    dropped_count = initial_count - len(resume_df)
+
+    print(f"[OK] Excluded {len(EXCLUDED_CATEGORIES)} categories: {', '.join(EXCLUDED_CATEGORIES)}")
+    print(f"[OK] Dropped {dropped_count} resumes, kept {len(resume_df)} resumes")
+    print(f"[OK] Remaining categories: {len(resume_df['Category'].unique())}")
 
     # Extract text and labels
     X_text = resume_df["Resume_str"].values     # raw for SBERT + custom
