@@ -419,7 +419,7 @@ def display_prediction_card(filename: str, result: dict, index: int):
 # MAIN UI
 # ============================================================================
 
-st.markdown('<h1 style="color: #667eea;">📄 Resume Screening</h1>', unsafe_allow_html=True)
+st.markdown('<h1 style="color: #667eea;">📄 Screen Candidates</h1>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="upload-section">

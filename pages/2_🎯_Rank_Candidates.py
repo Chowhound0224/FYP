@@ -402,7 +402,7 @@ def calculate_sbert_similarity(text1: str, text2: str) -> float:
 # MAIN UI
 # ============================================================================
 
-st.markdown('<h1 style="color: #667eea;">🎯 Job Matching & Candidate Ranking</h1>', unsafe_allow_html=True)
+st.markdown('<h1 style="color: #667eea;">🎯 Rank Candidates</h1>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="job-form">
@@ -414,14 +414,14 @@ st.markdown("""
 # Job requirements form
 with st.form("job_form"):
     # ---- TARGET CATEGORY ----
-    st.markdown("### 🎯 Target Job Category")
+    st.markdown("### Target Job Category")
 
     col1, col2 = st.columns([1, 2])
 
     with col1:
         category_choice = st.selectbox(
             "Choose from predefined or enter custom",
-            ["-- Select from list or enter custom below --"] + JOB_CATEGORIES,
+            ["-- Select from list or enter custom beside --"] + JOB_CATEGORIES,
             label_visibility="collapsed"
         )
 
@@ -665,36 +665,6 @@ if candidates and 'job_requirements' in st.session_state:
     with col4:
         high_matches = sum(1 for c in candidates if c['match_score'] >= 70)
         st.metric("Strong Candidates", high_matches)
-
-    st.markdown("---")
-
-    # Summary table
-    summary_data = []
-    for rank, candidate in enumerate(candidates, 1):
-        summary_data.append({
-            "Rank": rank,
-            "Filename": candidate['filename'],
-            "Match Score": f"{candidate['match_score']:.1f}%",
-            "Predicted Category": candidate['predicted_category'],
-            "Category Match": "Yes" if candidate['predicted_category'].upper() == req['category'].upper() else "No",
-        })
-
-    summary_df = pd.DataFrame(summary_data)
-
-    def color_rows(row):
-        score = float(row['Match Score'].replace('%', ''))
-        if row['Category Match'] == 'Yes' or score >= 70:
-            return ['background-color: #0A9548'] * len(row)  # vibrant green
-        elif score >= 50:
-            return ['background-color: #FFFACD'] * len(row)  # pale yellow
-        else:
-            return [''] * len(row)
-
-    st.dataframe(
-        summary_df.style.apply(color_rows, axis=1),
-        hide_index=True,
-        use_container_width=True,
-    )
 
     st.markdown("---")
     st.markdown("### Detailed Candidate Cards")

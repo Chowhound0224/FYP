@@ -8,7 +8,7 @@ import streamlit as st
 # PAGE CONFIG
 # ============================================================================
 st.set_page_config(
-    page_title="AI Candidate Finder",
+    page_title="TalentLens Resume Screening System",
     page_icon="✨",
     layout="centered", # Changed to centered for a focused, clean look
     initial_sidebar_state="collapsed" # Start collapsed for a cleaner main page
@@ -63,14 +63,8 @@ st.markdown(f"""
         text-align: center;
         margin: 15px 0;
         box-shadow: 0 2px 5px rgba(255,255,255,0.1); /* Light shadow for dark theme */
-        transition: all 0.3s ease;
         height: 100%;
-    }}
-
-    .action-card:hover {{
-        transform: translateY(-3px); /* Less lift on hover */
-        box-shadow: 0 4px 8px rgba(255,255,255,0.2);
-        border: 1px solid {ACCENT_COLOR}; /* Use accent color on hover for feedback */
+        cursor: default; /* Not clickable */
     }}
 
     .action-icon {{
@@ -146,11 +140,7 @@ st.markdown(f"""
             border: 1px solid #E0E0E0 !important;
             color: #000000 !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
-        }}
-
-        .action-card:hover {{
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
-            border: 1px solid #4A5FC1 !important;
+            cursor: default !important; /* Not clickable */
         }}
 
         .action-icon {{
@@ -212,7 +202,7 @@ st.markdown(f"""
 # ============================================================================
 
 # Hero Section (Focus: Clarity and Purpose)
-st.markdown('<h1 class="main-title">✨ AI Candidate Finder</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">✨ TalentLens Resume Screening System</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Quickly identify the best candidates from your resume pool.</p>', unsafe_allow_html=True)
 
 st.markdown("---")
@@ -225,7 +215,7 @@ with col1:
     st.markdown("""
     <div class="action-card">
         <div class="action-icon">📂</div>
-        <div class="action-title">Screen Resumes</div>
+        <div class="action-title">Screen Candidates</div>
         <div class="action-desc">
             Upload a batch of resumes and get instant AI categorization for easy sorting.
         </div>
@@ -233,15 +223,15 @@ with col1:
     """, unsafe_allow_html=True)
 
     # Button placed outside the HTML markdown
-    if st.button("📂 Start Screening", key="btn1", use_container_width=True):
-        st.switch_page("pages/1_📤_Resume_Upload.py")
+    if st.button("📂 Screen Candidates", key="btn1", use_container_width=True):
+        st.switch_page("pages/1_📤_Screen_Candidates.py")
 
 
 with col2:
     st.markdown("""
     <div class="action-card">
         <div class="action-icon">⭐</div>
-        <div class="action-title">Find Best Match</div>
+        <div class="action-title">Rank Candidates</div>
         <div class="action-desc">
             Define job requirements and rank candidates based on an AI-powered matching score.
         </div>
@@ -249,8 +239,8 @@ with col2:
     """, unsafe_allow_html=True)
 
     # Button placed outside the HTML markdown
-    if st.button("⭐ Find Matches", key="btn2", use_container_width=True):
-        st.switch_page("pages/2_🎯_Job_Matching.py")
+    if st.button("⭐ Rank Candidates", key="btn2", use_container_width=True):
+        st.switch_page("pages/2_🎯_Rank_Candidates.py")
 
 # HCI Principle: Visibility and Feedback
 st.markdown("---")
@@ -273,4 +263,4 @@ with col3:
 
 # Footer (Less prominent, clean)
 st.markdown("---")
-st.caption("AI Candidate Finder — Designed for a seamless recruitment experience.")
+st.caption("TalentLens Resume Screening System — Designed for a seamless recruitment experience.")

@@ -190,8 +190,3 @@ Note: The system now uses XGBoost exclusively. To test other models (RandomFores
 - `src/config.py::OPTUNA_N_TRIALS` - reduce from 10 to 5 for faster training
 - `src/config.py::TFIDF_MAX_FEATURES` - reduce from 5000 to 1000 for smaller features
 - Trade-off: speed vs accuracy
-
-### Legacy Code
-- `AI_model.py` - Still contains `rank_uploaded_resumes_hybrid()` function
-- This function is used by app.py for HR ranking mode
-- Will be refactored to `src/` structure in future
