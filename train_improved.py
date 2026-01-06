@@ -21,7 +21,7 @@ from src.config import (
 from src.utils import ensure_artifacts_dir, save_json, load_dataset
 from src.cleaning.text_cleaning import clean_text
 from src.features.build_features import build_combined_features
-from src.models.lightgbm_trainer import train_with_optuna
+from src.models.xgboost_trainer import train_with_optuna
 from src.evaluation.evaluate import evaluate_model
 from src.utils.metrics import save_confusion_matrices_both
 
@@ -102,15 +102,15 @@ def main():
     print(f"[OK] Train size: {len(X_train)}, Test size: {len(X_test)}")
 
     # ----------------------------------------------------------------------
-    # 5. Hyperparameter optimization + model training
+    # 5. Hyperparameter optimization + classifier training
     # ----------------------------------------------------------------------
-    best_model, best_params, best_score = train_with_optuna(X_train, y_train)
+    best_classifier, best_params, best_score = train_with_optuna(X_train, y_train)
 
     # ----------------------------------------------------------------------
     # 6. Evaluation
     # ----------------------------------------------------------------------
     evaluation = evaluate_model(
-        model=best_model,
+        classifier=best_classifier,
         X_test=X_test,
         y_test=y_test,
         label_encoder=label_encoder,
@@ -124,23 +124,23 @@ def main():
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
     # Save timestamped
-    model_path = ARTIFACTS_DIR / f"improved_model_{timestamp}.pkl"
+    classifier_path = ARTIFACTS_DIR / f"improved_classifier_{timestamp}.pkl"
     tfidf_path = ARTIFACTS_DIR / f"improved_tfidf_{timestamp}.pkl"
     scaler_path = ARTIFACTS_DIR / f"improved_scaler_{timestamp}.pkl"
     encoder_path = ARTIFACTS_DIR / f"improved_label_encoder_{timestamp}.pkl"
 
-    joblib.dump(best_model, model_path)
+    joblib.dump(best_classifier, classifier_path)
     joblib.dump(tfidf, tfidf_path)
     joblib.dump(scaler, scaler_path)
     joblib.dump(label_encoder, encoder_path)
 
     # Save latest (for app.py)
-    joblib.dump(best_model, BASE_DIR / "improved_classifier.pkl")
+    joblib.dump(best_classifier, BASE_DIR / "improved_classifier.pkl")
     joblib.dump(tfidf, BASE_DIR / "improved_tfidf.pkl")
     joblib.dump(scaler, BASE_DIR / "improved_scaler.pkl")
     joblib.dump(label_encoder, BASE_DIR / "improved_label_encoder.pkl")
 
-    print(f"[OK] Saved model: {model_path}")
+    print(f"[OK] Saved classifier: {classifier_path}")
 
     # Save metadata
     metadata = {
@@ -155,7 +155,7 @@ def main():
         "n_features": X_combined.shape[1],
         "classes": label_encoder.classes_.tolist(),
     }
-    save_json(metadata, ARTIFACTS_DIR / f"metadata_{timestamp}.json")
+    save_json(metadata, ARTIFACTS_DIR / f"improved_classifier_metadata_{timestamp}.json")
 
     # Save confusion matrices (raw + normalized)
     save_confusion_matrices_both(

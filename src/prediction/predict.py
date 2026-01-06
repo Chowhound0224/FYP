@@ -20,10 +20,10 @@ from src.config import (
 )
 
 # =============================================================================
-# Artifact paths (latest models saved by train_improved.py)
+# Artifact paths (latest classifier saved by train_improved.py)
 # =============================================================================
 
-MODEL_PATH = BASE_DIR / "improved_classifier.pkl"
+CLASSIFIER_PATH = BASE_DIR / "improved_classifier.pkl"
 TFIDF_PATH = BASE_DIR / "improved_tfidf.pkl"
 SCALER_PATH = BASE_DIR / "improved_scaler.pkl"
 ENCODER_PATH = BASE_DIR / "improved_label_encoder.pkl"
@@ -37,13 +37,13 @@ def load_artifacts() -> Tuple[Any, Any, Any, Any]:
     Load the latest saved classifier, TF-IDF, scaler, and label encoder.
 
     Returns:
-        (model, tfidf, scaler, label_encoder)
+        (classifier, tfidf, scaler, label_encoder)
     """
 
     missing = []
 
-    if not MODEL_PATH.exists():
-        missing.append(str(MODEL_PATH))
+    if not CLASSIFIER_PATH.exists():
+        missing.append(str(CLASSIFIER_PATH))
     if not TFIDF_PATH.exists():
         missing.append(str(TFIDF_PATH))
     if not SCALER_PATH.exists():
@@ -53,16 +53,16 @@ def load_artifacts() -> Tuple[Any, Any, Any, Any]:
 
     if missing:
         raise FileNotFoundError(
-            "❌ Missing artifacts. Train the improved model first using train_improved.py.\n"
+            "❌ Missing artifacts. Train the improved classifier first using train_improved.py.\n"
             "Missing files:\n" + "\n".join(missing)
         )
 
-    model = joblib.load(MODEL_PATH)
+    classifier = joblib.load(CLASSIFIER_PATH)
     tfidf = joblib.load(TFIDF_PATH)
     scaler = joblib.load(SCALER_PATH)
     label_encoder = joblib.load(ENCODER_PATH)
 
-    return model, tfidf, scaler, label_encoder
+    return classifier, tfidf, scaler, label_encoder
 
 
 # =============================================================================
@@ -86,7 +86,7 @@ def predict_resume_category(resume_text: str) -> Dict[str, Any]:
     # ----------------------------------------------------------------------
     # 1. Load classifier + transformers
     # ----------------------------------------------------------------------
-    model, tfidf, scaler, label_encoder = load_artifacts()
+    classifier, tfidf, scaler, label_encoder = load_artifacts()
 
     # ----------------------------------------------------------------------
     # 2. Clean text using your universal cleaner
@@ -108,11 +108,11 @@ def predict_resume_category(resume_text: str) -> Dict[str, Any]:
     # ----------------------------------------------------------------------
     # 4. Predict
     # ----------------------------------------------------------------------
-    y_pred_numeric = model.predict(features)[0]
+    y_pred_numeric = classifier.predict(features)[0]
 
-    # If model does not support predict_proba (rare case)
-    if hasattr(model, "predict_proba"):
-        probabilities = model.predict_proba(features)[0]
+    # If classifier does not support predict_proba (rare case)
+    if hasattr(classifier, "predict_proba"):
+        probabilities = classifier.predict_proba(features)[0]
         confidence = float(np.max(probabilities))
     else:
         probabilities = np.zeros(len(label_encoder.classes_))
