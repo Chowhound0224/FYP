@@ -12,17 +12,17 @@ from typing import Any, Dict
 
 
 def evaluate_model(
-    model: Any,
+    classifier: Any,
     X_test: np.ndarray,
     y_test: np.ndarray,
     label_encoder: LabelEncoder,
     model_type: str
 ) -> Dict[str, Any]:
     """
-    Evaluate a trained model using multiple metrics.
+    Evaluate a trained classifier using multiple metrics.
 
     Args:
-        model: Trained classifier
+        classifier: Trained classifier
         X_test: Test feature matrix
         y_test: Encoded test labels
         label_encoder: Encoder for decoding labels
@@ -35,7 +35,7 @@ def evaluate_model(
     # ----------------------------------------------------------------------
     # 1. Predict
     # ----------------------------------------------------------------------
-    y_pred = model.predict(X_test)
+    y_pred = classifier.predict(X_test)
 
     # ----------------------------------------------------------------------
     # 2. Compute metrics
