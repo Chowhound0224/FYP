@@ -19,8 +19,8 @@ project_root/
 │   ├─ features/          # Feature extraction
 │   │   ├─ custom_features.py
 │   │   └─ build_features.py
-│   ├─ models/            # Model training
-│   │   └─ lightgbm_trainer.py
+│   ├─ models/            # Classifier training
+│   │   └─ xgboost_trainer.py
 │   ├─ evaluation/        # Evaluation metrics
 │   │   └─ evaluate.py
 │   └─ utils/             # Utilities
@@ -40,7 +40,7 @@ project_root/
 pip install streamlit pandas scikit-learn xgboost sentence-transformers optuna nltk pymupdf docx2txt
 ```
 
-### 2. Train the Model
+### 2. Train the Classifier
 
 ```bash
 python train_improved.py
@@ -50,7 +50,7 @@ This will:
 - Load and clean resume data
 - Extract SBERT + TF-IDF + custom features (5391 total)
 - Run Optuna hyperparameter optimization (10 trials)
-- Save models to `improved_classifier.pkl`, `improved_tfidf.pkl`, etc.
+- Save classifier to `improved_classifier.pkl`, `improved_tfidf.pkl`, etc.
 - Achieve 75-85% accuracy
 
 ### 3. Run the Web App
@@ -63,9 +63,9 @@ Two modes available:
 - **Job Seeker**: Upload resume → Get predicted category + matching jobs
 - **HR**: Enter job details + upload candidates → Get AI-powered rankings
 
-## Model Architecture
+## Classifier Architecture
 
-The improved model uses a **three-feature fusion** approach:
+The improved classifier uses a **three-feature fusion** approach:
 
 1. **SBERT Embeddings** (384 features)
    - Semantic understanding using `all-MiniLM-L6-v2`
@@ -81,11 +81,11 @@ The improved model uses a **three-feature fusion** approach:
    - `tech_skill_count`, `soft_skill_count`
    - `word_count`, `cert_count`
 
-**Total: 5391 features** → StandardScaler → XGBoost/LogReg/RandomForest
+**Total: 5391 features** → StandardScaler → **XGBoost Classifier**
 
 ## Key Features
 
-- **Optuna Optimization**: Automatically finds best model and hyperparameters
+- **Optuna Optimization**: Automatically finds best hyperparameters for XGBoost
 - **Sequential CV**: Uses `n_jobs=1` to avoid parallel processing overhead with large features
 - **Label Encoding**: Handles string categories properly for XGBoost
 - **Windows Compatible**: No emoji characters (uses `[OK]` instead)
@@ -93,8 +93,8 @@ The improved model uses a **three-feature fusion** approach:
 
 ## Performance
 
-- **Baseline Model** (TF-IDF only): ~69% accuracy
-- **Improved Model** (SBERT + TF-IDF + custom): **75-85% accuracy**
+- **Baseline Classifier** (TF-IDF only): ~69% accuracy
+- **Improved Classifier** (SBERT + TF-IDF + custom): **75-85% accuracy**
 
 ## Configuration
 

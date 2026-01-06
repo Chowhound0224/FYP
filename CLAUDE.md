@@ -26,7 +26,7 @@ This structure separates concerns and makes the code easier to modify and test.
 
 ## Running the Application
 
-### Train the improved model:
+### Train the improved classifier:
 ```bash
 python train_improved.py
 ```
@@ -35,7 +35,7 @@ Runs complete pipeline:
 1. Loads Resume.csv and cleans data
 2. Extracts 3 feature types (SBERT + TF-IDF + custom = 5391 features)
 3. Optuna optimization (10 trials, ~1-2 minutes)
-4. Saves models to `improved_*.pkl` files
+4. Saves classifier and artifacts to `improved_*.pkl` files
 5. Generates confusion matrix and metadata
 
 ### Start the Streamlit web app:
@@ -72,12 +72,12 @@ The core innovation is **three-feature fusion**:
 
 ### Training (src/models/)
 
-**`lightgbm_trainer.py::train_with_optuna()`**
+**`xgboost_trainer.py::train_with_optuna()`**
 - Uses **XGBoost only** with Optuna hyperparameter optimization
 - Optimizes 9 hyperparameters: n_estimators, max_depth, learning_rate, subsample, colsample_bytree, min_child_weight, gamma, reg_alpha, reg_lambda
 - Uses TPE sampler with configurable trials (default: 10)
 - **Sequential CV** (`n_jobs=1`) avoids parallel overhead with large features
-- Returns: (best_model, best_params, best_score)
+- Returns: (best_classifier, best_params, best_score)
 
 ### Evaluation (src/evaluation/)
 
@@ -101,13 +101,13 @@ train_improved.py:
   1. load_dataset() → DataFrame
   2. apply_cleaning() → cleaned text
   3. build_combined_features() → X_combined (5391 features)
-  4. train_with_optuna() → best_model
+  4. train_with_optuna() → best_classifier
   5. evaluate_model() → metrics
-  6. save models + artifacts
+  6. save classifier + artifacts
 
 app.py:
-  1. load_models() → (classifier, tfidf, scaler, label_encoder, sbert)
-  2. predict_category_improved() → category name
+  1. load_artifacts() → (classifier, tfidf, scaler, label_encoder)
+  2. predict_resume_category() → category name
   3. rank_uploaded_resumes_hybrid() → ranked candidates
 ```
 
@@ -126,7 +126,7 @@ app.py:
 ### Feature Synchronization
 - `extract_custom_features()` returns **exactly 7 features**
 - Order matters for hstack: SBERT (384) + TF-IDF (5000) + custom (7) = 5391
-- If features don't match, model will raise "Feature shape mismatch"
+- If features don't match, classifier will raise "Feature shape mismatch"
 
 ### Optuna Performance
 - 10 trials (not 50) for speed (~1-2 minutes total)
@@ -150,7 +150,7 @@ app.py:
 
 **"Invalid classes inferred from unique values of y"**
 - Forgot to encode labels before XGBoost training
-- Use `LabelEncoder().fit_transform()` before passing to model
+- Use `LabelEncoder().fit_transform()` before passing to classifier
 
 **Slow Optuna (50+ sec/trial)**
 - Change `OPTUNA_N_JOBS` from -1 to 1 in config.py
@@ -159,9 +159,9 @@ app.py:
 ## File Locations
 
 ### Training Outputs
-- **Latest models** (used by app.py): `improved_classifier.pkl`, `improved_tfidf.pkl`, `improved_scaler.pkl`, `improved_label_encoder.pkl`
-- **Timestamped versions**: `artifacts/improved_model_YYYYMMDD_HHMMSS.pkl`
-- **Metadata**: `artifacts/improved_model_metadata_*.json`
+- **Latest classifier** (used by app.py): `improved_classifier.pkl`, `improved_tfidf.pkl`, `improved_scaler.pkl`, `improved_label_encoder.pkl`
+- **Timestamped versions**: `artifacts/improved_classifier_YYYYMMDD_HHMMSS.pkl`
+- **Metadata**: `artifacts/improved_classifier_metadata_*.json`
 - **Confusion Matrix**: `artifacts/confusion_matrix_*.png`
 
 ### Data Files
@@ -176,15 +176,15 @@ app.py:
 2. Add new feature to returned dict
 3. Update `CUSTOM_FEATURES_COUNT` in `src/config.py`
 4. Update `TOTAL_FEATURES` calculation
-5. Re-train model: `python train_improved.py`
+5. Re-train classifier: `python train_improved.py`
 
 ### Tuning XGBoost Hyperparameters
-1. Edit `src/models/lightgbm_trainer.py::objective()`
+1. Edit `src/models/xgboost_trainer.py::objective()`
 2. Adjust hyperparameter ranges (e.g., increase max_depth range, adjust learning_rate bounds)
 3. Add new XGBoost parameters if needed (e.g., scale_pos_weight for imbalanced classes)
 4. Re-train: `python train_improved.py`
 
-Note: The system now uses XGBoost exclusively. To test other models (RandomForest, LightGBM, LogisticRegression), you would need to modify the trainer to include model selection.
+Note: The system now uses XGBoost exclusively. To test other classifiers (RandomForest, LightGBM, LogisticRegression), you would need to modify the trainer to include classifier selection.
 
 ### Adjusting Training Speed
 - `src/config.py::OPTUNA_N_TRIALS` - reduce from 10 to 5 for faster training
