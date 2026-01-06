@@ -80,18 +80,18 @@ def train_with_optuna(
     print(f"[OK] Best XGBoost Parameters: {best_params}")
 
     # ------------------------------------------------------------------
-    # Train the final XGBoost model with best parameters
+    # Train the final XGBoost classifier with best parameters
     # ------------------------------------------------------------------
-    best_model = xgb.XGBClassifier(
+    best_classifier = xgb.XGBClassifier(
         **best_params,
         tree_method="hist",
         random_state=RANDOM_STATE,
         eval_metric='logloss'
     )
 
-    best_model.fit(X_train, y_train, sample_weight=sample_weights)
+    best_classifier.fit(X_train, y_train, sample_weight=sample_weights)
 
-    return best_model, best_params, study.best_value
+    return best_classifier, best_params, study.best_value
 
 
 
