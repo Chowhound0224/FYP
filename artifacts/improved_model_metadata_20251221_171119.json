@@ -1,0 +1,32 @@
+{
+  "timestamp": "20251221_171119",
+  "accuracy": 0.9002624671916011,
+  "f1_weighted": 0.9000234213157609,
+  "best_params": {
+    "model": "xgboost",
+    "n_estimators": 139,
+    "max_depth": 12,
+    "learning_rate": 0.13764422318448438,
+    "subsample": 0.5610191174223894,
+    "colsample_bytree": 0.7475884550556351,
+    "reg_lambda": 0.4404463590406621
+  },
+  "feature_shapes": {
+    "sbert": [
+      1901,
+      384
+    ],
+    "tfidf": [
+      1901,
+      5000
+    ],
+    "custom": [
+      1901,
+      7
+    ],
+    "combined": [
+      1901,
+      5391
+    ]
+  }
+}
