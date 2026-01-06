@@ -1,0 +1,40 @@
+{
+  "timestamp": "20251220_150545",
+  "best_params": {
+    "n_estimators": 250,
+    "max_depth": 15,
+    "learning_rate": 0.1205712628744377,
+    "subsample": 0.8394633936788146,
+    "colsample_bytree": 0.6624074561769746,
+    "min_child_weight": 2,
+    "gamma": 0.2904180608409973,
+    "reg_alpha": 0.8661761457749352,
+    "reg_lambda": 0.6011150117432088
+  },
+  "best_cv_score": 0.8890920470468144,
+  "test_accuracy": 0.9102564102564102,
+  "test_f1_weighted": 0.9099078556960241,
+  "test_f1_macro": 0.9108420506667755,
+  "n_train": 1559,
+  "n_test": 390,
+  "n_features": 5775,
+  "classes": [
+    "ACCOUNTANT",
+    "ADVOCATE",
+    "AVIATION",
+    "BUSINESS-DEVELOPMENT",
+    "CHEF",
+    "CONSTRUCTION",
+    "CONSULTANT",
+    "DESIGNER",
+    "ENGINEERING",
+    "FINANCE",
+    "FITNESS",
+    "HEALTHCARE",
+    "HR",
+    "INFORMATION-TECHNOLOGY",
+    "PUBLIC-RELATIONS",
+    "SALES",
+    "TEACHER"
+  ]
+}
