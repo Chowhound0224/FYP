@@ -54,13 +54,13 @@ def main():
     # 2b. Filter out low-sample categories
     # ----------------------------------------------------------------------
     EXCLUDED_CATEGORIES = [
-        'BPO',                  # 22 samples
-        'AUTOMOBILE',           # 36 samples
-        'AGRICULTURE',          # 63 samples
-        'DIGITAL-MEDIA',        # 96 samples
-        'APPAREL',              # 97 samples
-        'ARTS',                 # 103 samples (user requested)
-        'BANKING'               # 115 samples (user requested)
+        'BPO',     
+        'AUTOMOBILE',     
+        'AGRICULTURE',       
+        'DIGITAL-MEDIA',      
+        'APPAREL',             
+        'ARTS',               
+        'BANKING'               
     ]
 
     initial_count = len(resume_df)
@@ -72,7 +72,7 @@ def main():
     print(f"[OK] Remaining categories: {len(resume_df['Category'].unique())}")
 
     # Extract text and labels
-    X_text = resume_df["Resume_str"].values     # raw for SBERT + custom
+    X_text = resume_df["Resume_str"].values   
     y_raw = resume_df["Category"].values
 
     # Encode labels
@@ -114,7 +114,7 @@ def main():
         X_test=X_test,
         y_test=y_test,
         label_encoder=label_encoder,
-        model_type="xgboost"  # Fixed: XGBoost-only trainer
+        model_type="xgboost"  
     )
 
     # ----------------------------------------------------------------------
