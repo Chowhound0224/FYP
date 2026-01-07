@@ -1,14 +1,25 @@
-streamlit
-pandas
-numpy
-scikit-learn
-joblib
-nltk
-docx2txt
-PyPDF2
-sentence-transformers
-optuna
-xgboost
-lightgbm
-matplotlib
-seaborn
+# Core ML/Data Science
+numpy==2.3.4
+pandas==2.3.3
+scikit-learn==1.7.2
+joblib==1.5.2
+
+# NLP & Text Processing
+nltk==3.9.2
+sentence-transformers==5.1.2
+
+# Document Processing
+docx2txt==0.9
+PyPDF2==3.0.1
+
+# ML Models
+xgboost==3.1.1
+lightgbm==4.6.0
+optuna==4.6.0
+
+# Visualization
+matplotlib==3.10.7
+seaborn==0.13.2
+
+# Web Framework
+streamlit==1.51.0
