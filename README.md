@@ -51,7 +51,7 @@ This will:
 - Extract SBERT + TF-IDF + custom features (5391 total)
 - Run Optuna hyperparameter optimization (10 trials)
 - Save classifier to `improved_classifier.pkl`, `improved_tfidf.pkl`, etc.
-- Achieve 75-85% accuracy
+- Achieve 85-90% accuracy
 
 ### 3. Run the Web App
 
